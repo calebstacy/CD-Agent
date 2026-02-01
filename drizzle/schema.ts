@@ -1,28 +1,211 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean, json } from "drizzle-orm/mysql-core";
+import { relations } from "drizzle-orm";
 
 /**
  * Core user table backing auth flow.
- * Extend this file with additional tables as your product grows.
- * Columns use camelCase to match both database fields and generated types.
  */
 export const users = mysqlTable("users", {
-  /**
-   * Surrogate primary key. Auto-incremented numeric value managed by the database.
-   * Use this for relations between tables.
-   */
   id: int("id").autoincrement().primaryKey(),
-  /** Manus OAuth identifier (openId) returned from the OAuth callback. Unique per user. */
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  
+  // Billing
+  stripeCustomerId: varchar("stripeCustomerId", { length: 255 }),
+  subscriptionTier: mysqlEnum("subscriptionTier", ["free", "pro", "team", "business", "enterprise"]).default("free").notNull(),
+  subscriptionStatus: mysqlEnum("subscriptionStatus", ["active", "canceled", "past_due", "trialing"]),
+  subscriptionId: varchar("subscriptionId", { length: 255 }),
+  currentPeriodEnd: timestamp("currentPeriodEnd"),
+  
+  // Usage tracking
+  generationsThisMonth: int("generationsThisMonth").default(0).notNull(),
+  generationsTotal: int("generationsTotal").default(0).notNull(),
+  lastResetDate: timestamp("lastResetDate").defaultNow().notNull(),
+  
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
 });
 
+export const usersRelations = relations(users, ({ many }) => ({
+  projects: many(projects),
+  generations: many(generations),
+  teamMemberships: many(teamMembers),
+  ownedTeams: many(teams),
+}));
+
+/**
+ * Teams for collaboration
+ */
+export const teams = mysqlTable("teams", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  ownerId: int("ownerId").notNull(),
+  
+  // Shared brand voice
+  brandVoicePreset: text("brandVoicePreset"),
+  brandVoiceCustom: text("brandVoiceCustom"),
+  brandGuidelines: text("brandGuidelines"),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const teamsRelations = relations(teams, ({ one, many }) => ({
+  owner: one(users, {
+    fields: [teams.ownerId],
+    references: [users.id],
+  }),
+  members: many(teamMembers),
+  projects: many(projects),
+}));
+
+/**
+ * Team members
+ */
+export const teamMembers = mysqlTable("team_members", {
+  id: int("id").autoincrement().primaryKey(),
+  teamId: int("teamId").notNull(),
+  userId: int("userId").notNull(),
+  role: mysqlEnum("role", ["owner", "admin", "member"]).default("member").notNull(),
+  joinedAt: timestamp("joinedAt").defaultNow().notNull(),
+});
+
+export const teamMembersRelations = relations(teamMembers, ({ one }) => ({
+  team: one(teams, {
+    fields: [teamMembers.teamId],
+    references: [teams.id],
+  }),
+  user: one(users, {
+    fields: [teamMembers.userId],
+    references: [users.id],
+  }),
+}));
+
+/**
+ * Projects for organizing content
+ */
+export const projects = mysqlTable("projects", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  userId: int("userId").notNull(),
+  teamId: int("teamId"),
+  
+  // Brand voice for this project
+  brandVoice: text("brandVoice"),
+  
+  // Project settings
+  isArchived: boolean("isArchived").default(false).notNull(),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const projectsRelations = relations(projects, ({ one, many }) => ({
+  user: one(users, {
+    fields: [projects.userId],
+    references: [users.id],
+  }),
+  team: one(teams, {
+    fields: [projects.teamId],
+    references: [teams.id],
+  }),
+  generations: many(generations),
+}));
+
+/**
+ * Content generations
+ */
+export const generations = mysqlTable("generations", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  projectId: int("projectId"),
+  
+  // Generation input
+  contentType: mysqlEnum("contentType", [
+    "button",
+    "error",
+    "success",
+    "empty_state",
+    "form_label",
+    "tooltip",
+    "navigation",
+    "heading",
+    "description",
+    "placeholder"
+  ]).notNull(),
+  purpose: text("purpose").notNull(),
+  context: text("context"),
+  brandVoice: text("brandVoice"),
+  
+  // Generation output
+  suggestions: json("suggestions").$type<Array<{ copy: string; rationale: string }>>().notNull(),
+  selectedSuggestion: text("selectedSuggestion"),
+  
+  // Metadata
+  model: varchar("model", { length: 100 }),
+  tokensUsed: int("tokensUsed"),
+  
+  // Favorites and library
+  isFavorite: boolean("isFavorite").default(false).notNull(),
+  isInLibrary: boolean("isInLibrary").default(false).notNull(),
+  tags: json("tags").$type<string[]>(),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const generationsRelations = relations(generations, ({ one }) => ({
+  user: one(users, {
+    fields: [generations.userId],
+    references: [users.id],
+  }),
+  project: one(projects, {
+    fields: [generations.projectId],
+    references: [projects.id],
+  }),
+}));
+
+/**
+ * Usage analytics
+ */
+export const usageAnalytics = mysqlTable("usage_analytics", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  teamId: int("teamId"),
+  
+  date: timestamp("date").notNull(),
+  generationsCount: int("generationsCount").default(0).notNull(),
+  
+  // Breakdown by content type
+  contentTypeBreakdown: json("contentTypeBreakdown").$type<Record<string, number>>(),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const usageAnalyticsRelations = relations(usageAnalytics, ({ one }) => ({
+  user: one(users, {
+    fields: [usageAnalytics.userId],
+    references: [users.id],
+  }),
+  team: one(teams, {
+    fields: [usageAnalytics.teamId],
+    references: [teams.id],
+  }),
+}));
+
+// Type exports
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
-
-// TODO: Add your tables here
+export type Team = typeof teams.$inferSelect;
+export type InsertTeam = typeof teams.$inferInsert;
+export type TeamMember = typeof teamMembers.$inferSelect;
+export type InsertTeamMember = typeof teamMembers.$inferInsert;
+export type Project = typeof projects.$inferSelect;
+export type InsertProject = typeof projects.$inferInsert;
+export type Generation = typeof generations.$inferSelect;
+export type InsertGeneration = typeof generations.$inferInsert;
+export type UsageAnalytics = typeof usageAnalytics.$inferSelect;
+export type InsertUsageAnalytics = typeof usageAnalytics.$inferInsert;
