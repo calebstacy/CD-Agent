@@ -74,6 +74,8 @@ export const appRouter = router({
           brandVoice: z.string().optional(),
           projectId: z.number().optional(),
           nSuggestions: z.number().min(1).max(5).default(3),
+          designSystemId: z.number().optional(),
+          componentVariant: z.string().optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -93,7 +95,9 @@ export const appRouter = router({
           context: input.context,
           brandVoice: input.brandVoice,
           nSuggestions: input.nSuggestions,
-        });
+          designSystemId: input.designSystemId,
+          componentVariant: input.componentVariant,
+        }, ctx.user.id);
 
         // Save to database
         const generation = await db.createGeneration({
@@ -308,6 +312,187 @@ export const appRouter = router({
     analytics: protectedProcedure.input(z.object({ days: z.number().default(30) })).query(async ({ ctx, input }) => {
       return db.getUserAnalytics(ctx.user.id, input.days);
     }),
+  }),
+
+  // Design Systems
+  designSystems: router({
+    create: protectedProcedure
+      .input(
+        z.object({
+          name: z.string().min(1),
+          description: z.string().optional(),
+          projectId: z.number().optional(),
+          sourceType: z.enum(["figma", "upload", "manual"]).optional(),
+          sourceUrl: z.string().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        return db.createDesignSystem({
+          ...input,
+          userId: ctx.user.id,
+        });
+      }),
+
+    list: protectedProcedure.query(async ({ ctx }) => {
+      return db.getDesignSystemsByUser(ctx.user.id);
+    }),
+
+    get: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ ctx, input }) => {
+      const designSystem = await db.getDesignSystemById(input.id);
+      if (!designSystem || designSystem.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      return designSystem;
+    }),
+
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          name: z.string().optional(),
+          description: z.string().optional(),
+          colors: z.record(z.string(), z.string()).optional(),
+          typography: z.any().optional(),
+          spacing: z.record(z.string(), z.string()).optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const { id, ...data } = input;
+        const designSystem = await db.getDesignSystemById(id);
+        if (!designSystem || designSystem.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        await db.updateDesignSystem(id, data as any);
+        return { success: true };
+      }),
+
+    delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+      const designSystem = await db.getDesignSystemById(input.id);
+      if (!designSystem || designSystem.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      await db.deleteDesignSystem(input.id);
+      return { success: true };
+    }),
+
+    // Parse design system document
+    parseDocument: protectedProcedure
+      .input(
+        z.object({
+          designSystemId: z.number(),
+          documentText: z.string(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const designSystem = await db.getDesignSystemById(input.designSystemId);
+        if (!designSystem || designSystem.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+
+        const { parseDesignSystemDocument } = await import("./designSystemParser");
+        const parsed = await parseDesignSystemDocument(input.documentText);
+
+        // Update design system with parsed data
+        await db.updateDesignSystem(input.designSystemId, {
+          colors: parsed.colors,
+          typography: parsed.typography,
+          spacing: parsed.spacing,
+        });
+
+        // Create component libraries
+        if (parsed.components) {
+          for (const comp of parsed.components) {
+            await db.createComponentLibrary({
+              designSystemId: input.designSystemId,
+              name: comp.name,
+              type: comp.type as any,
+              variants: comp.variants,
+            });
+          }
+        }
+
+        return { success: true, parsed };
+      }),
+
+    // Analyze brand voice from examples
+    analyzeBrandVoice: protectedProcedure
+      .input(
+        z.object({
+          designSystemId: z.number(),
+          examples: z.array(
+            z.object({
+              type: z.string(),
+              text: z.string(),
+              context: z.string().optional(),
+            })
+          ),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const designSystem = await db.getDesignSystemById(input.designSystemId);
+        if (!designSystem || designSystem.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+
+        const { analyzeBrandVoice } = await import("./designSystemParser");
+        const analysis = await analyzeBrandVoice(input.examples);
+
+        // Create brand voice profile
+        const profile = await db.createBrandVoiceProfile({
+          designSystemId: input.designSystemId,
+          name: "Analyzed Brand Voice",
+          tone: analysis.tone,
+          vocabulary: analysis.vocabulary,
+          patterns: analysis.patterns,
+          aiAnalysis: analysis.aiAnalysis,
+          confidence: analysis.confidence,
+        });
+
+        // Store examples
+        const exampleRecords = input.examples.map((ex) => ({
+          designSystemId: input.designSystemId,
+          type: ex.type as any,
+          text: ex.text,
+          context: ex.context,
+        }));
+        await db.bulkCreateContentExamples(exampleRecords);
+
+        return { success: true, profile, analysis };
+      }),
+
+    // Get components for a design system
+    components: protectedProcedure.input(z.object({ designSystemId: z.number() })).query(async ({ ctx, input }) => {
+      const designSystem = await db.getDesignSystemById(input.designSystemId);
+      if (!designSystem || designSystem.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      return db.getComponentLibrariesByDesignSystem(input.designSystemId);
+    }),
+
+    // Get brand voice profiles
+    brandVoices: protectedProcedure.input(z.object({ designSystemId: z.number() })).query(async ({ ctx, input }) => {
+      const designSystem = await db.getDesignSystemById(input.designSystemId);
+      if (!designSystem || designSystem.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      return db.getBrandVoiceProfilesByDesignSystem(input.designSystemId);
+    }),
+
+    // Get content examples
+    examples: protectedProcedure
+      .input(
+        z.object({
+          designSystemId: z.number(),
+          type: z.string().optional(),
+        })
+      )
+      .query(async ({ ctx, input }) => {
+        const designSystem = await db.getDesignSystemById(input.designSystemId);
+        if (!designSystem || designSystem.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        return db.getContentExamplesByDesignSystem(input.designSystemId, input.type);
+      }),
   }),
 
   // Admin endpoints

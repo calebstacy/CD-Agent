@@ -36,6 +36,7 @@ export default function Generate() {
   const [purpose, setPurpose] = useState("");
   const [context, setContext] = useState("");
   const [brandVoice, setBrandVoice] = useState("friendly");
+  const [designSystemId, setDesignSystemId] = useState<string | undefined>(undefined);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   const generateMutation = trpc.generate.create.useMutation({
@@ -51,6 +52,7 @@ export default function Generate() {
   const toggleLibraryMutation = trpc.generate.toggleLibrary.useMutation();
 
   const { data: usageData } = trpc.user.usage.useQuery();
+  const { data: designSystems } = trpc.designSystems.list.useQuery();
 
   const handleGenerate = () => {
     if (!purpose.trim()) {
@@ -63,6 +65,7 @@ export default function Generate() {
       purpose,
       context: context || undefined,
       brandVoice,
+      designSystemId: designSystemId ? parseInt(designSystemId) : undefined,
     });
   };
 
@@ -182,6 +185,28 @@ export default function Generate() {
                 </SelectContent>
               </Select>
             </div>
+
+            {designSystems && designSystems.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="designSystem">Design System (optional)</Label>
+                <Select value={designSystemId} onValueChange={setDesignSystemId}>
+                  <SelectTrigger id="designSystem">
+                    <SelectValue placeholder="None - use preset brand voice" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None - use preset brand voice</SelectItem>
+                    {designSystems.map((system: any) => (
+                      <SelectItem key={system.id} value={system.id.toString()}>
+                        {system.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Select a design system to generate content that matches your brand voice and component library
+                </p>
+              </div>
+            )}
 
             <Button
               className="w-full"

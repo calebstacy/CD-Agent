@@ -1,4 +1,5 @@
 import { invokeLLM } from "./_core/llm";
+import * as db from "./db";
 
 export type ContentType =
   | "button"
@@ -18,6 +19,8 @@ export interface GenerateContentRequest {
   context?: string;
   brandVoice?: string;
   nSuggestions?: number;
+  designSystemId?: number;
+  componentVariant?: string;
 }
 
 export interface ContentSuggestion {
@@ -53,6 +56,87 @@ const CONTENT_TYPE_GUIDELINES: Record<ContentType, string> = {
     "Placeholder text should provide helpful examples or formatting guidance. Don't use it for essential instructions. Keep it brief and use a lighter tone than labels.",
 };
 
+/**
+ * Load design system context for content generation
+ */
+async function loadDesignSystemContext(
+  designSystemId: number,
+  userId: number,
+  contentType: ContentType,
+  componentVariant?: string
+): Promise<string | null> {
+  try {
+    const designSystem = await db.getDesignSystemById(designSystemId);
+    if (!designSystem || designSystem.userId !== userId) {
+      return null;
+    }
+
+    let context = "\n\n## DESIGN SYSTEM CONTEXT\n";
+
+    // Add brand voice profiles
+    const brandVoices = await db.getBrandVoiceProfilesByDesignSystem(designSystemId);
+    if (brandVoices.length > 0) {
+      const voice = brandVoices[0];
+      context += `\n### Brand Voice\n`;
+      if (voice.tone) {
+        context += `Tone: ${voice.tone.join(", ")}\n`;
+      }
+      if (voice.vocabulary && voice.vocabulary.preferred) {
+        context += `Preferred words: ${voice.vocabulary.preferred.join(", ")}\n`;
+      }
+      if (voice.vocabulary && voice.vocabulary.avoid) {
+        context += `Avoid: ${voice.vocabulary.avoid.join(", ")}\n`;
+      }
+      if (voice.vocabulary && voice.vocabulary.terminology) {
+        context += `Terminology: ${JSON.stringify(voice.vocabulary.terminology)}\n`;
+      }
+      if (voice.patterns) {
+        context += `Patterns:\n`;
+        context += `- Sentence structure: ${voice.patterns.sentenceStructure}\n`;
+        context += `- Punctuation: ${voice.patterns.punctuation}\n`;
+        context += `- Capitalization: ${voice.patterns.capitalization}\n`;
+      }
+    }
+
+    // Add component library info
+    const components = await db.getComponentLibrariesByDesignSystem(designSystemId);
+    const relevantComponent = components.find((c) => c.type === contentType || c.name.toLowerCase().includes(contentType));
+    if (relevantComponent) {
+      context += `\n### Component: ${relevantComponent.name}\n`;
+      if (relevantComponent.variants && Array.isArray(relevantComponent.variants)) {
+        context += `Variants: ${relevantComponent.variants.map((v: any) => v.name).join(", ")}\n`;
+        if (componentVariant) {
+          const variant = relevantComponent.variants.find((v: any) => v.name === componentVariant);
+          if (variant && (variant as any).characterLimit) {
+            context += `Character limit for ${componentVariant}: ${(variant as any).characterLimit}\n`;
+          }
+        }
+      }
+    }
+
+    // Add content examples
+    const examples = await db.getContentExamplesByDesignSystem(designSystemId, contentType);
+    if (examples.length > 0) {
+      context += `\n### Existing ${contentType} Examples\n`;
+      examples.slice(0, 5).forEach((ex) => {
+        context += `- "${ex.text}"`;
+        if (ex.context) context += ` (${ex.context})`;
+        context += `\n`;
+      });
+    }
+
+    // Add design tokens
+    if (designSystem.colors) {
+      context += `\n### Colors\n${JSON.stringify(designSystem.colors, null, 2)}\n`;
+    }
+
+    return context;
+  } catch (error) {
+    console.error("[Content Generation] Error loading design system context:", error);
+    return null;
+  }
+}
+
 const SYSTEM_PROMPT = `You are an expert content designer and UX writer with deep knowledge of best practices from:
 - Material Design (Google)
 - Human Interface Guidelines (Apple)
@@ -70,7 +154,16 @@ Your role is to generate high-quality, user-centered microcopy and UX content th
 
 Always provide rationale based on UX writing principles and best practices.`;
 
-export async function generateContent(request: GenerateContentRequest): Promise<GenerateContentResponse> {
+export async function generateContent(request: GenerateContentRequest, userId?: number): Promise<GenerateContentResponse> {
+  // Load design system context if provided
+  let designSystemContext = "";
+  if (request.designSystemId && userId) {
+    const designSystem = await loadDesignSystemContext(request.designSystemId, userId, request.contentType, request.componentVariant);
+    if (designSystem) {
+      designSystemContext = designSystem;
+    }
+  }
+
   const { contentType, purpose, context, brandVoice, nSuggestions = 3 } = request;
 
   const guidelines = CONTENT_TYPE_GUIDELINES[contentType];
@@ -80,6 +173,7 @@ export async function generateContent(request: GenerateContentRequest): Promise<
 **Purpose**: ${purpose}
 ${context ? `**Context**: ${context}` : ""}
 ${brandVoice ? `**Brand Voice**: ${brandVoice}` : "**Brand Voice**: Friendly and professional"}
+${designSystemContext}
 
 **Guidelines for ${contentType.replace("_", " ")}**:
 ${guidelines}

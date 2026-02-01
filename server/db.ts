@@ -12,12 +12,24 @@ import {
   Team,
   TeamMember,
   UsageAnalytics,
+  DesignSystem,
+  InsertDesignSystem,
+  ComponentLibrary,
+  InsertComponentLibrary,
+  BrandVoiceProfile,
+  InsertBrandVoiceProfile,
+  ContentExample,
+  InsertContentExample,
   generations,
   projects,
   teamMembers,
   teams,
   usageAnalytics,
   users,
+  designSystems,
+  componentLibraries,
+  brandVoiceProfiles,
+  contentExamples,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -394,4 +406,136 @@ export async function getTotalGenerations(): Promise<number> {
 
   const result = await db.select({ count: sql<number>`count(*)` }).from(generations);
   return result[0]?.count ?? 0;
+}
+
+
+// ==================== Design System Queries ====================
+
+export async function createDesignSystem(data: InsertDesignSystem): Promise<DesignSystem> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(designSystems).values(data);
+  const id = Number(result[0].insertId);
+
+  const created = await db.select().from(designSystems).where(eq(designSystems.id, id)).limit(1);
+  if (!created[0]) throw new Error("Failed to create design system");
+
+  return created[0];
+}
+
+export async function getDesignSystemsByUser(userId: number): Promise<DesignSystem[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db.select().from(designSystems).where(eq(designSystems.userId, userId)).orderBy(desc(designSystems.createdAt));
+}
+
+export async function getDesignSystemById(id: number): Promise<DesignSystem | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db.select().from(designSystems).where(eq(designSystems.id, id)).limit(1);
+  return result[0];
+}
+
+export async function updateDesignSystem(id: number, data: Partial<InsertDesignSystem>): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(designSystems).set(data).where(eq(designSystems.id, id));
+}
+
+export async function deleteDesignSystem(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Delete related records first
+  await db.delete(contentExamples).where(eq(contentExamples.designSystemId, id));
+  await db.delete(brandVoiceProfiles).where(eq(brandVoiceProfiles.designSystemId, id));
+  await db.delete(componentLibraries).where(eq(componentLibraries.designSystemId, id));
+  await db.delete(designSystems).where(eq(designSystems.id, id));
+}
+
+// ==================== Component Library Queries ====================
+
+export async function createComponentLibrary(data: InsertComponentLibrary): Promise<ComponentLibrary> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(componentLibraries).values(data);
+  const id = Number(result[0].insertId);
+
+  const created = await db.select().from(componentLibraries).where(eq(componentLibraries.id, id)).limit(1);
+  if (!created[0]) throw new Error("Failed to create component library");
+
+  return created[0];
+}
+
+export async function getComponentLibrariesByDesignSystem(designSystemId: number): Promise<ComponentLibrary[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db.select().from(componentLibraries).where(eq(componentLibraries.designSystemId, designSystemId));
+}
+
+// ==================== Brand Voice Profile Queries ====================
+
+export async function createBrandVoiceProfile(data: InsertBrandVoiceProfile): Promise<BrandVoiceProfile> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(brandVoiceProfiles).values(data);
+  const id = Number(result[0].insertId);
+
+  const created = await db.select().from(brandVoiceProfiles).where(eq(brandVoiceProfiles.id, id)).limit(1);
+  if (!created[0]) throw new Error("Failed to create brand voice profile");
+
+  return created[0];
+}
+
+export async function getBrandVoiceProfilesByDesignSystem(designSystemId: number): Promise<BrandVoiceProfile[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db.select().from(brandVoiceProfiles).where(eq(brandVoiceProfiles.designSystemId, designSystemId));
+}
+
+// ==================== Content Example Queries ====================
+
+export async function createContentExample(data: InsertContentExample): Promise<ContentExample> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(contentExamples).values(data);
+  const id = Number(result[0].insertId);
+
+  const created = await db.select().from(contentExamples).where(eq(contentExamples.id, id)).limit(1);
+  if (!created[0]) throw new Error("Failed to create content example");
+
+  return created[0];
+}
+
+export async function getContentExamplesByDesignSystem(designSystemId: number, type?: string): Promise<ContentExample[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  if (type) {
+    return db
+      .select()
+      .from(contentExamples)
+      .where(and(eq(contentExamples.designSystemId, designSystemId), eq(contentExamples.type, type as any)))
+      .orderBy(desc(contentExamples.createdAt));
+  }
+
+  return db.select().from(contentExamples).where(eq(contentExamples.designSystemId, designSystemId)).orderBy(desc(contentExamples.createdAt));
+}
+
+export async function bulkCreateContentExamples(examples: InsertContentExample[]): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  if (examples.length === 0) return;
+
+  await db.insert(contentExamples).values(examples);
 }

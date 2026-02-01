@@ -15,6 +15,13 @@
       "when": 1769931954249,
       "tag": "0001_equal_menace",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1769959823532,
+      "tag": "0002_small_toad",
+      "breakpoints": true
     }
   ]
 }

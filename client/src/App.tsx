@@ -14,6 +14,7 @@ import Teams from "./pages/Teams";
 import TeamDetail from "./pages/TeamDetail";
 import Settings from "./pages/Settings";
 import AdminDashboard from "./pages/AdminDashboard";
+import DesignSystems from "./pages/DesignSystems";
 
 function Router() {
   return (
@@ -66,6 +67,12 @@ function Router() {
             <TeamDetail teamId={parseInt(params.id)} />
           </DashboardLayout>
         )}
+      </Route>
+      
+      <Route path={"/design-systems"}>
+        <DashboardLayout>
+          <DesignSystems />
+        </DashboardLayout>
       </Route>
       
       <Route path={"/settings"}>

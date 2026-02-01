@@ -196,6 +196,157 @@ export const usageAnalyticsRelations = relations(usageAnalytics, ({ one }) => ({
   }),
 }));
 
+/**
+ * Design Systems - stores brand design system information
+ */
+export const designSystems = mysqlTable("design_systems", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  userId: int("userId").notNull(),
+  projectId: int("projectId"),
+  
+  // Design tokens
+  colors: json("colors").$type<Record<string, string>>(), // { primary: "#6366f1", secondary: "#8b5cf6" }
+  typography: json("typography").$type<{
+    fontFamily?: string;
+    headingSizes?: Record<string, string>;
+    bodySizes?: Record<string, string>;
+  }>(),
+  spacing: json("spacing").$type<Record<string, string>>(), // { sm: "8px", md: "16px" }
+  
+  // Source information
+  sourceType: mysqlEnum("sourceType", ["figma", "upload", "manual"]),
+  sourceUrl: text("sourceUrl"),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const designSystemsRelations = relations(designSystems, ({ one, many }) => ({
+  user: one(users, {
+    fields: [designSystems.userId],
+    references: [users.id],
+  }),
+  project: one(projects, {
+    fields: [designSystems.projectId],
+    references: [projects.id],
+  }),
+  componentLibraries: many(componentLibraries),
+  brandVoiceProfiles: many(brandVoiceProfiles),
+  contentExamples: many(contentExamples),
+}));
+
+/**
+ * Component Libraries - stores UI component definitions
+ */
+export const componentLibraries = mysqlTable("component_libraries", {
+  id: int("id").autoincrement().primaryKey(),
+  designSystemId: int("designSystemId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  type: mysqlEnum("type", ["button", "input", "card", "modal", "alert", "custom"]).notNull(),
+  
+  // Component variants and properties
+  variants: json("variants").$type<Array<{
+    name: string;
+    properties?: Record<string, any>;
+    characterLimit?: number;
+    description?: string;
+  }>>(),
+  
+  // Usage guidelines
+  guidelines: text("guidelines"),
+  examples: json("examples").$type<Array<{ variant: string; text: string; context: string }>>(),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const componentLibrariesRelations = relations(componentLibraries, ({ one }) => ({
+  designSystem: one(designSystems, {
+    fields: [componentLibraries.designSystemId],
+    references: [designSystems.id],
+  }),
+}));
+
+/**
+ * Brand Voice Profiles - AI-learned brand voice characteristics
+ */
+export const brandVoiceProfiles = mysqlTable("brand_voice_profiles", {
+  id: int("id").autoincrement().primaryKey(),
+  designSystemId: int("designSystemId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  
+  // Voice characteristics
+  tone: json("tone").$type<string[]>(), // ["friendly", "professional", "concise"]
+  vocabulary: json("vocabulary").$type<{
+    preferred?: string[];
+    avoid?: string[];
+    terminology?: Record<string, string>;
+  }>(),
+  patterns: json("patterns").$type<{
+    sentenceStructure?: string;
+    punctuation?: string;
+    capitalization?: string;
+  }>(),
+  
+  // AI-generated insights
+  aiAnalysis: text("aiAnalysis"),
+  confidence: int("confidence"), // 0-100
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const brandVoiceProfilesRelations = relations(brandVoiceProfiles, ({ one }) => ({
+  designSystem: one(designSystems, {
+    fields: [brandVoiceProfiles.designSystemId],
+    references: [designSystems.id],
+  }),
+}));
+
+/**
+ * Content Examples - existing product copy for learning
+ */
+export const contentExamples = mysqlTable("content_examples", {
+  id: int("id").autoincrement().primaryKey(),
+  designSystemId: int("designSystemId").notNull(),
+  
+  type: mysqlEnum("type", [
+    "button",
+    "error",
+    "success",
+    "empty_state",
+    "form_label",
+    "tooltip",
+    "navigation",
+    "heading",
+    "description",
+    "placeholder",
+    "other"
+  ]).notNull(),
+  text: text("text").notNull(),
+  context: text("context"),
+  componentVariant: varchar("componentVariant", { length: 100 }),
+  
+  // Source tracking
+  sourceUrl: text("sourceUrl"),
+  screenshot: text("screenshot"), // S3 URL
+  
+  // Quality indicators
+  isApproved: boolean("isApproved").default(true).notNull(),
+  rating: int("rating"), // 1-5
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const contentExamplesRelations = relations(contentExamples, ({ one }) => ({
+  designSystem: one(designSystems, {
+    fields: [contentExamples.designSystemId],
+    references: [designSystems.id],
+  }),
+}));
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
@@ -209,3 +360,11 @@ export type Generation = typeof generations.$inferSelect;
 export type InsertGeneration = typeof generations.$inferInsert;
 export type UsageAnalytics = typeof usageAnalytics.$inferSelect;
 export type InsertUsageAnalytics = typeof usageAnalytics.$inferInsert;
+export type DesignSystem = typeof designSystems.$inferSelect;
+export type InsertDesignSystem = typeof designSystems.$inferInsert;
+export type ComponentLibrary = typeof componentLibraries.$inferSelect;
+export type InsertComponentLibrary = typeof componentLibraries.$inferInsert;
+export type BrandVoiceProfile = typeof brandVoiceProfiles.$inferSelect;
+export type InsertBrandVoiceProfile = typeof brandVoiceProfiles.$inferInsert;
+export type ContentExample = typeof contentExamples.$inferSelect;
+export type InsertContentExample = typeof contentExamples.$inferInsert;
