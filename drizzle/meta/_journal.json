@@ -29,6 +29,13 @@
       "when": 1769992672306,
       "tag": "0003_optimal_rictor",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1770009272002,
+      "tag": "0004_bumpy_solo",
+      "breakpoints": true
     }
   ]
 }

@@ -283,3 +283,16 @@
 - [x] Show character counts on generated copy options
 - [x] Add premium animations and micro-interactions
 - [x] Implement artifact iteration - refine options like clay over time
+
+
+## Pattern Library System (NEW)
+- [x] Design database schema for product copy patterns (component type, text, context, success metrics)
+- [x] Create patterns table with fields: id, userId, projectId, componentType, text, context, source, successMetrics, usageCount, createdAt
+- [x] Push database migration
+- [x] Build tRPC endpoints for pattern CRUD (create, list, search, update, delete)
+- [ ] Create pattern upload interface (manual entry + CSV/JSON import)
+- [x] Implement semantic search for finding similar patterns
+- [x] Integrate pattern context into generation prompts
+- [x] Add "Save to library" button when user accepts a suggestion
+- [x] Show relevant patterns as context when iterating on copy
+- [ ] Test pattern-aware generation flow

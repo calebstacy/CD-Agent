@@ -1,0 +1,20 @@
+CREATE TABLE `copy_patterns` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`userId` int NOT NULL,
+	`projectId` int,
+	`componentType` enum('button','error','success','empty_state','form_label','tooltip','navigation','heading','description','placeholder','modal_title','modal_body','notification','onboarding','cta') NOT NULL,
+	`text` text NOT NULL,
+	`context` text,
+	`source` enum('manual','imported','accepted_suggestion','codebase') NOT NULL DEFAULT 'manual',
+	`isApproved` boolean NOT NULL DEFAULT true,
+	`abTestWinner` boolean,
+	`conversionLift` decimal(5,2),
+	`userResearchValidated` boolean,
+	`notes` text,
+	`usageCount` int NOT NULL DEFAULT 0,
+	`lastUsedAt` timestamp,
+	`embedding` json,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `copy_patterns_id` PRIMARY KEY(`id`)
+);

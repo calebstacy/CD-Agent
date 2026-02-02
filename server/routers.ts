@@ -589,6 +589,45 @@ export const appRouter = router({
           });
         }
 
+        // Load relevant patterns from user's pattern library
+        const patternDb = await import("./patternDb");
+        
+        // Detect component type from message for pattern matching
+        const componentTypeMap: Record<string, string> = {
+          button: "button", btn: "button", cta: "cta", "call to action": "cta",
+          error: "error", "error message": "error", warning: "error",
+          success: "success", confirmation: "success",
+          empty: "empty_state", "empty state": "empty_state", "no results": "empty_state",
+          form: "form_label", label: "form_label", field: "form_label",
+          tooltip: "tooltip", hint: "tooltip", help: "tooltip",
+          nav: "navigation", menu: "navigation", link: "navigation",
+          heading: "heading", title: "heading", header: "heading",
+          description: "description", desc: "description", body: "description",
+          placeholder: "placeholder", input: "placeholder",
+          modal: "modal_title", dialog: "modal_title", popup: "modal_title",
+          notification: "notification", toast: "notification", alert: "notification",
+          onboarding: "onboarding", welcome: "onboarding", intro: "onboarding",
+        };
+        
+        const messageLower = input.message.toLowerCase();
+        let detectedType: string | undefined;
+        for (const [keyword, type] of Object.entries(componentTypeMap)) {
+          if (messageLower.includes(keyword)) {
+            detectedType = type;
+            break;
+          }
+        }
+        
+        // Get relevant patterns if we detected a component type
+        let patternContext = "";
+        if (detectedType) {
+          patternContext = await patternDb.getPatternsAsContext({
+            userId: ctx.user.id,
+            componentType: detectedType,
+            limit: 5,
+          });
+        }
+
         // Build system prompt with conversational personality
         const systemPrompt = `You're a senior content designer. You've worked on everything from consumer apps to enterprise products. You know UX writing, microcopy, content strategy—the whole deal.
 
@@ -647,7 +686,11 @@ Don't:
 - Explain why you're explaining things
 - Use phrases like "Let me break this down" or "Here's what I'm thinking"
 
-Just talk like a colleague would. Direct, helpful, concise. And show your suggestions visually with artifacts.`;
+Just talk like a colleague would. Direct, helpful, concise. And show your suggestions visually with artifacts.${patternContext ? `
+
+## Product Copy Patterns
+
+The user has saved these patterns from their product. Use them as reference for tone, style, and consistency:${patternContext}` : ""}`;
 
         const conversationDb = await import("./conversationDb");
         
@@ -758,6 +801,173 @@ Just talk like a colleague would. Direct, helpful, concise. And show your sugges
           thinking,
         };
       }),
+  }),
+
+  // Copy Patterns - product copy library
+  patterns: router({
+    // Create a new pattern
+    create: protectedProcedure
+      .input(
+        z.object({
+          componentType: z.enum([
+            "button", "error", "success", "empty_state", "form_label",
+            "tooltip", "navigation", "heading", "description", "placeholder",
+            "modal_title", "modal_body", "notification", "onboarding", "cta"
+          ]),
+          text: z.string().min(1),
+          context: z.string().optional(),
+          source: z.enum(["manual", "imported", "accepted_suggestion", "codebase"]).default("manual"),
+          projectId: z.number().optional(),
+          abTestWinner: z.boolean().optional(),
+          conversionLift: z.string().optional(), // Decimal stored as string
+          userResearchValidated: z.boolean().optional(),
+          notes: z.string().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const patternDb = await import("./patternDb");
+        const id = await patternDb.createPattern({
+          userId: ctx.user.id,
+          ...input,
+        });
+        return { id };
+      }),
+
+    // List patterns with optional filters
+    list: protectedProcedure
+      .input(
+        z.object({
+          componentType: z.enum([
+            "button", "error", "success", "empty_state", "form_label",
+            "tooltip", "navigation", "heading", "description", "placeholder",
+            "modal_title", "modal_body", "notification", "onboarding", "cta"
+          ]).optional(),
+          projectId: z.number().optional(),
+          limit: z.number().min(1).max(100).default(50),
+          offset: z.number().min(0).default(0),
+        }).optional()
+      )
+      .query(async ({ ctx, input }) => {
+        const patternDb = await import("./patternDb");
+        return patternDb.listPatterns({
+          userId: ctx.user.id,
+          componentType: input?.componentType,
+          projectId: input?.projectId,
+          limit: input?.limit ?? 50,
+          offset: input?.offset ?? 0,
+        });
+      }),
+
+    // Search patterns by text (semantic search)
+    search: protectedProcedure
+      .input(
+        z.object({
+          query: z.string().min(1),
+          componentType: z.enum([
+            "button", "error", "success", "empty_state", "form_label",
+            "tooltip", "navigation", "heading", "description", "placeholder",
+            "modal_title", "modal_body", "notification", "onboarding", "cta"
+          ]).optional(),
+          limit: z.number().min(1).max(20).default(5),
+        })
+      )
+      .query(async ({ ctx, input }) => {
+        const patternDb = await import("./patternDb");
+        return patternDb.searchPatterns({
+          userId: ctx.user.id,
+          query: input.query,
+          componentType: input.componentType,
+          limit: input.limit,
+        });
+      }),
+
+    // Get a single pattern by ID
+    get: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const patternDb = await import("./patternDb");
+        const pattern = await patternDb.getPattern(input.id);
+        if (!pattern || pattern.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        return pattern;
+      }),
+
+    // Update a pattern
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          text: z.string().min(1).optional(),
+          context: z.string().optional(),
+          isApproved: z.boolean().optional(),
+          abTestWinner: z.boolean().optional(),
+          conversionLift: z.string().optional(), // Decimal stored as string
+          userResearchValidated: z.boolean().optional(),
+          notes: z.string().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const patternDb = await import("./patternDb");
+        const pattern = await patternDb.getPattern(input.id);
+        if (!pattern || pattern.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        const { id, ...updates } = input;
+        await patternDb.updatePattern(id, updates);
+        return { success: true };
+      }),
+
+    // Delete a pattern
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const patternDb = await import("./patternDb");
+        const pattern = await patternDb.getPattern(input.id);
+        if (!pattern || pattern.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        await patternDb.deletePattern(input.id);
+        return { success: true };
+      }),
+
+    // Import patterns from CSV/JSON
+    import: protectedProcedure
+      .input(
+        z.object({
+          patterns: z.array(
+            z.object({
+              componentType: z.enum([
+                "button", "error", "success", "empty_state", "form_label",
+                "tooltip", "navigation", "heading", "description", "placeholder",
+                "modal_title", "modal_body", "notification", "onboarding", "cta"
+              ]),
+              text: z.string().min(1),
+              context: z.string().optional(),
+              notes: z.string().optional(),
+            })
+          ),
+          projectId: z.number().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const patternDb = await import("./patternDb");
+        const ids = await patternDb.importPatterns(
+          input.patterns.map(p => ({
+            ...p,
+            userId: ctx.user.id,
+            projectId: input.projectId,
+            source: "imported" as const,
+          }))
+        );
+        return { imported: ids.length, ids };
+      }),
+
+    // Get pattern stats
+    stats: protectedProcedure.query(async ({ ctx }) => {
+      const patternDb = await import("./patternDb");
+      return patternDb.getPatternStats(ctx.user.id);
+    }),
   }),
 
   // Admin endpoints

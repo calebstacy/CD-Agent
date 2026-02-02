@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean, json } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean, json, decimal } from "drizzle-orm/mysql-core";
 import { relations } from "drizzle-orm";
 
 /**
@@ -408,6 +408,55 @@ export const messagesRelations = relations(messages, ({ one }) => ({
   }),
 }));
 
+/**
+ * Copy Patterns - product copy library for grounding AI suggestions
+ */
+export const copyPatterns = mysqlTable("copy_patterns", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  projectId: int("projectId"),
+  
+  // Pattern content
+  componentType: mysqlEnum("componentType", [
+    "button", "error", "success", "empty_state", "form_label",
+    "tooltip", "navigation", "heading", "description", "placeholder",
+    "modal_title", "modal_body", "notification", "onboarding", "cta"
+  ]).notNull(),
+  text: text("text").notNull(),
+  context: text("context"), // Where/when this copy is used
+  
+  // Source and validation
+  source: mysqlEnum("source", ["manual", "imported", "accepted_suggestion", "codebase"]).default("manual").notNull(),
+  isApproved: boolean("isApproved").default(true).notNull(),
+  
+  // Success metrics (optional)
+  abTestWinner: boolean("abTestWinner"),
+  conversionLift: decimal("conversionLift", { precision: 5, scale: 2 }), // e.g., 12.50%
+  userResearchValidated: boolean("userResearchValidated"),
+  notes: text("notes"),
+  
+  // Usage tracking
+  usageCount: int("usageCount").default(0).notNull(),
+  lastUsedAt: timestamp("lastUsedAt"),
+  
+  // Embedding for semantic search (stored as JSON array of floats)
+  embedding: json("embedding").$type<number[]>(),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const copyPatternsRelations = relations(copyPatterns, ({ one }) => ({
+  user: one(users, {
+    fields: [copyPatterns.userId],
+    references: [users.id],
+  }),
+  project: one(projects, {
+    fields: [copyPatterns.projectId],
+    references: [projects.id],
+  }),
+}));
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
@@ -433,3 +482,5 @@ export type Conversation = typeof conversations.$inferSelect;
 export type InsertConversation = typeof conversations.$inferInsert;
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = typeof messages.$inferInsert;
+export type CopyPattern = typeof copyPatterns.$inferSelect;
+export type InsertCopyPattern = typeof copyPatterns.$inferInsert;

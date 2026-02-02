@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Copy, Check, RefreshCw, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { Copy, Check, RefreshCw, Sparkles, ChevronDown, ChevronUp, BookmarkPlus } from 'lucide-react';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
 
@@ -177,6 +177,7 @@ function CopyOption({ text, index, onIterate, animationDelay = 0 }: {
           <IterateButton label="More casual" onClick={() => handleIterate('more casual')} />
           <IterateButton label="More formal" onClick={() => handleIterate('more formal')} />
           <IterateButton label="More urgent" onClick={() => handleIterate('more urgent')} />
+          <SaveToLibraryButton text={text} />
         </div>
       </div>
     </div>
@@ -200,6 +201,73 @@ function IterateButton({ label, onClick }: { label: string; onClick: () => void 
     >
       <RefreshCw className="w-3 h-3" />
       {label}
+    </button>
+  );
+}
+
+import { trpc } from '@/lib/trpc';
+
+function SaveToLibraryButton({ text }: { text: string }) {
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  const createPattern = trpc.patterns.create.useMutation({
+    onSuccess: () => {
+      setSaved(true);
+      setError(null);
+      setTimeout(() => setSaved(false), 3000);
+    },
+    onError: (err) => {
+      setError(err.message);
+      setTimeout(() => setError(null), 3000);
+    },
+  });
+
+  const handleSave = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    // Detect component type from text length
+    const charCount = text.length;
+    let componentType: "button" | "form_label" | "description" = "description";
+    if (charCount <= 20) componentType = "button";
+    else if (charCount <= 40) componentType = "form_label";
+    
+    createPattern.mutate({
+      componentType,
+      text,
+      source: "accepted_suggestion",
+    });
+  };
+
+  return (
+    <button
+      onClick={handleSave}
+      disabled={createPattern.isPending || saved}
+      className={cn(
+        "text-xs px-3 py-1.5 rounded-lg",
+        "bg-green-500/20 text-green-400",
+        "hover:bg-green-500/30 hover:text-green-300",
+        "transition-all duration-200",
+        "flex items-center gap-1.5",
+        "disabled:opacity-50 disabled:cursor-not-allowed"
+      )}
+    >
+      {saved ? (
+        <>
+          <Check className="w-3 h-3" />
+          Saved
+        </>
+      ) : createPattern.isPending ? (
+        <>
+          <RefreshCw className="w-3 h-3 animate-spin" />
+          Saving...
+        </>
+      ) : (
+        <>
+          <BookmarkPlus className="w-3 h-3" />
+          Save to library
+        </>
+      )}
     </button>
   );
 }
