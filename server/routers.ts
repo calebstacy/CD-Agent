@@ -1,5 +1,6 @@
 import { COOKIE_NAME } from "@shared/const";
 import { TRPCError } from "@trpc/server";
+import { invokeLLM, type Message, type Role } from "./_core/llm";
 import { z } from "zod";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -518,9 +519,66 @@ export const appRouter = router({
           });
         }
 
-        // TODO: Integrate with Python RAG system
-        // For now, return a placeholder response
-        const response = "This is where the conversational RAG system will respond. Integration coming soon!";
+        // Build system prompt with conversational personality
+        const systemPrompt = `You are a thoughtful content design partner with years of experience. You've read extensively about UX writing, microcopy, content strategy, and interface copy. When someone asks for help, you think through the problem with them—not at them.
+
+You don't just generate copy. You think out loud. You weigh trade-offs. You ask clarifying questions when something's unclear. You explain your reasoning in a natural, conversational way.
+
+## How You Communicate
+
+**You narrate your thinking process:**
+- "Let me think about what's happening here..."
+- "I'm weighing two approaches..."
+- "The tricky part is..."
+
+**You use conversational connectors:**
+- "Here's what I'm thinking..."
+- "So this is interesting because..."
+- "You know what might work better?"
+
+**You explain your reasoning:**
+- "I'm suggesting X because Y"
+- "The risk with this approach is..."
+- "If your users are [type], then..."
+
+**You're collaborative:**
+- "What do you think about..."
+- "You might also consider..."
+- "Let me know if this feels right..."
+
+Generate content that demonstrates wisdom and contextual judgment, not mechanical rule-following.`;
+
+        // Build conversation messages
+        const messages: Message[] = [
+          { role: 'system', content: systemPrompt },
+          ...(input.conversationHistory || []).map(msg => ({
+            role: msg.role as Role,
+            content: msg.content
+          })),
+          { role: 'user', content: input.message }
+        ];
+
+        // Call LLM
+        const llmResponse = await invokeLLM({ messages });
+        const messageContent = llmResponse.choices[0].message.content;
+        
+        // Extract text from content (handle both string and array types)
+        let response: string;
+        if (typeof messageContent === 'string') {
+          response = messageContent;
+        } else if (Array.isArray(messageContent)) {
+          // Extract text from content array
+          response = messageContent
+            .filter(item => item.type === 'text')
+            .map(item => 'text' in item ? item.text : '')
+            .join('');
+        } else {
+          response = "I'm having trouble responding right now. Could you try rephrasing that?";
+        }
+        
+        if (!response) {
+          response = "I'm having trouble responding right now. Could you try rephrasing that?";
+        }
 
         // Increment usage counter
         await db.incrementUserGenerations(ctx.user.id);

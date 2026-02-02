@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, ImagePlus, X, Paperclip } from 'lucide-react';
+import { Send, Sparkles, ImagePlus, X, Paperclip, Command } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { trpc } from '@/lib/trpc';
 import { Streamdown } from 'streamdown';
 import { toast } from 'sonner';
 
-interface Message {
+interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   images?: string[];
@@ -14,9 +14,9 @@ interface Message {
 }
 
 export default function Chat() {
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages, setMessages] = useState<ChatMessage[]>([
     {
-      role: 'assistant',
+      role: 'assistant' as const,
       content: "Hey there. I'm here to help you think through content design challenges. What are you working on?",
       timestamp: new Date()
     }
@@ -24,9 +24,28 @@ export default function Chat() {
   const [input, setInput] = useState('');
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showSlashCommands, setShowSlashCommands] = useState(false);
+  const [filteredCommands, setFilteredCommands] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const commandsRef = useRef<HTMLDivElement>(null);
+
+  // Import slash commands
+  const slashCommands = [
+    { command: '/iterate', label: 'Iterate on copy', description: 'Refine and improve existing copy', prompt: "I'd like to iterate on some copy I've written. Can you help me think through different variations and improvements?" },
+    { command: '/brainstorm', label: 'Brainstorm ideas', description: 'Generate multiple creative options', prompt: "Let's brainstorm together. I need help generating multiple creative options for this content challenge." },
+    { command: '/review', label: 'Review my copy', description: 'Get feedback on existing content', prompt: "I'd like you to review some copy I've written and give me thoughtful feedback on what's working and what could be stronger." },
+    { command: '/shorten', label: 'Make it shorter', description: 'Condense without losing meaning', prompt: "I need to make this copy shorter while keeping the core message. Can you help me find the most concise way to say this?" },
+    { command: '/clarify', label: 'Make it clearer', description: 'Improve clarity and understanding', prompt: "This copy feels unclear or confusing. Can you help me make it more straightforward and easier to understand?" },
+    { command: '/tone', label: 'Adjust tone', description: 'Change the voice or feeling', prompt: "I want to adjust the tone of this copy. Let's talk through different ways to say this with a different voice or feeling." },
+    { command: '/error', label: 'Error message help', description: 'Write empathetic error copy', prompt: "I'm working on an error message. Help me think through how to communicate this problem in a way that's helpful and not frustrating." },
+    { command: '/cta', label: 'Call-to-action', description: 'Write compelling CTAs', prompt: "I need help with a call-to-action. Let's explore different ways to motivate users to take this action." },
+    { command: '/onboarding', label: 'Onboarding copy', description: 'Welcome and guide new users', prompt: "I'm designing an onboarding flow. Help me think through how to welcome users and guide them through their first experience." },
+    { command: '/empty', label: 'Empty state', description: 'Fill blank spaces meaningfully', prompt: "I'm working on an empty state—when there's no content yet. How can I make this moment helpful instead of just blank?" },
+    { command: '/microcopy', label: 'Microcopy help', description: 'Small but important text', prompt: "I need help with some microcopy—those small bits of text like button labels, tooltips, or form hints. Let's make them work harder." },
+    { command: '/accessibility', label: 'Accessibility check', description: 'Make content more inclusive', prompt: "Can you help me review this copy for accessibility? I want to make sure it's clear and inclusive for all users." }
+  ];
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -43,6 +62,32 @@ export default function Chat() {
       textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
     }
   }, [input]);
+
+  // Handle slash command detection
+  useEffect(() => {
+    if (input.startsWith('/')) {
+      const query = input.slice(1).toLowerCase();
+      const filtered = slashCommands.filter(cmd => 
+        cmd.command.slice(1).toLowerCase().includes(query) ||
+        cmd.label.toLowerCase().includes(query)
+      );
+      setFilteredCommands(filtered);
+      setShowSlashCommands(filtered.length > 0);
+    } else {
+      setShowSlashCommands(false);
+    }
+  }, [input]);
+
+  // Click outside to close commands
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (commandsRef.current && !commandsRef.current.contains(event.target as Node)) {
+        setShowSlashCommands(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const chatMutation = trpc.chat.send.useMutation();
 
@@ -102,12 +147,12 @@ export default function Chat() {
     
     setInput('');
     setUploadedImages([]);
-    setMessages(prev => [...prev, { 
-      role: 'user', 
-      content: userMessage || '(Image attached)',
-      images,
-      timestamp: new Date()
-    }]);
+      setMessages(prev => [...prev, { 
+        role: 'user' as const, 
+        content: userMessage || '(Image attached)',
+        images,
+        timestamp: new Date()
+      }]);
     setIsGenerating(true);
 
     try {
@@ -117,14 +162,14 @@ export default function Chat() {
       });
       
       setMessages(prev => [...prev, {
-        role: 'assistant',
+        role: 'assistant' as const,
         content: result.response,
         timestamp: new Date()
       }]);
     } catch (error) {
       console.error('Failed to generate response:', error);
       setMessages(prev => [...prev, {
-        role: 'assistant',
+        role: 'assistant' as const,
         content: "Sorry, I ran into an issue. Could you try that again?",
         timestamp: new Date()
       }]);
@@ -134,10 +179,26 @@ export default function Chat() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (showSlashCommands) {
+      if (e.key === 'Escape') {
+        setShowSlashCommands(false);
+        return;
+      }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        return;
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const selectCommand = (cmd: any) => {
+    setInput(cmd.prompt);
+    setShowSlashCommands(false);
+    textareaRef.current?.focus();
   };
 
   const formatTime = (date: Date) => {
@@ -271,6 +332,40 @@ export default function Chat() {
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Slash commands dropdown */}
+          {showSlashCommands && filteredCommands.length > 0 && (
+            <div 
+              ref={commandsRef}
+              className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-2xl border-2 border-neutral-200 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200"
+            >
+              <div className="p-2 space-y-1 max-h-80 overflow-y-auto">
+                {filteredCommands.map((cmd, index) => (
+                  <button
+                    key={cmd.command}
+                    onClick={() => selectCommand(cmd)}
+                    className="w-full text-left px-4 py-3 rounded-xl hover:bg-neutral-50 transition-colors group"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-neutral-900 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Command className="w-4 h-4 text-white" strokeWidth={2} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm font-medium text-neutral-900">{cmd.command}</span>
+                          <span className="text-sm text-neutral-600">{cmd.label}</span>
+                        </div>
+                        <p className="text-xs text-neutral-500 mt-0.5">{cmd.description}</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <div className="px-4 py-2 bg-neutral-50 border-t border-neutral-200">
+                <p className="text-xs text-neutral-500 font-mono">↑↓ navigate · ⏎ select · esc close</p>
+              </div>
             </div>
           )}
 
