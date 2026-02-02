@@ -28,6 +28,7 @@ export default function Chat() {
   const [input, setInput] = useState('');
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [lastUserMessage, setLastUserMessage] = useState('');
   const [conversationId, setConversationId] = useState<number | undefined>(undefined);
   const [showSlashCommands, setShowSlashCommands] = useState(false);
   const [filteredCommands, setFilteredCommands] = useState<any[]>([]);
@@ -152,6 +153,7 @@ export default function Chat() {
     
     setInput('');
     setUploadedImages([]);
+    setLastUserMessage(userMessage);
       setMessages(prev => [...prev, { 
         role: 'user' as const, 
         content: userMessage || '(Image attached)',
@@ -325,7 +327,7 @@ export default function Chat() {
               </div>
             ))}
 
-            <ThinkingSteps isGenerating={isGenerating} />
+            <ThinkingSteps isGenerating={isGenerating} userMessage={lastUserMessage} />
 
             <div ref={messagesEndRef} />
           </div>

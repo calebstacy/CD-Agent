@@ -271,3 +271,4 @@
 ## Critical Bugs (NEW)
 - [x] Fix Anthropic API system message error (must use top-level system parameter, not message role)
 - [x] Fix monthly generation limit error (bypass for admin or increase limits)
+- [x] Make thinking steps dynamic and contextual (not fixed list every time)
