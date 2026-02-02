@@ -24,6 +24,11 @@ async function checkUsageLimit(userId: number) {
     throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
   }
 
+  // Admin users have unlimited generations
+  if (user.role === "admin") {
+    return { allowed: true, remaining: Infinity };
+  }
+
   const limit = TIER_LIMITS[user.subscriptionTier];
   
   // Check if we need to reset monthly count
