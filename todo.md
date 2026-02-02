@@ -226,3 +226,19 @@
 - [ ] Add copy/iterate/apply actions to artifacts
 - [ ] Style artifacts with visual hierarchy
 - [ ] Test artifact rendering in chat
+
+
+## Artifact System Fixes (NEW)
+- [x] Update system prompt to default to copy-options (not ui-preview)
+- [x] Make AI generate 3-4 variations instead of single suggestions
+- [ ] Improve artifact legibility (better contrast, readable text)
+- [ ] Test with error message example
+
+
+## Extended Thinking Mode (NEW)
+- [x] Enable extended thinking in LLM API calls (3000 token budget)
+- [x] Extract thinking from LLM response
+- [x] Return thinking in chat.send endpoint
+- [x] Display thinking process in chat UI (collapsible details element)
+- [x] Style thinking section distinctly from main response (neutral bg, rounded)
+- [ ] Test thinking mode with complex content design questions

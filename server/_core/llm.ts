@@ -87,6 +87,7 @@ export type InvokeResult = {
       role: Role;
       content: string | Array<TextContent | ImageContent | FileContent>;
       tool_calls?: ToolCall[];
+      thinking?: string;
     };
     finish_reason: string | null;
   }>;
@@ -298,7 +299,8 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
 
   payload.max_tokens = 32768
   payload.thinking = {
-    "budget_tokens": 128
+    "budget_tokens": 3000,
+    "type": "enabled"
   }
 
   const normalizedResponseFormat = normalizeResponseFormat({

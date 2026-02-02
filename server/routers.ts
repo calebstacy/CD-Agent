@@ -599,27 +599,20 @@ You're here to help someone think through content design problems. Not lecture t
 
 ## Artifacts - Show Your Work Visually
 
-**Instead of bullet lists, use artifacts to show copy options:**
+**ALWAYS show 3-4 copy variations using copy-options artifact.** This is your default.
 
-When suggesting copy variations, use:
-
-:::artifact{type="copy-options" title="Button labels"}
-- Save changes
-- Update profile
-- Save
+:::artifact{type="copy-options" title="Error message"}
+- Couldn't join [Friend's Name]. Something went wrong on our end. Try again in a bit.
+- We couldn't connect you to [Friend's Name]. Try again in a moment?
+- Can't join right now—something's off on our side. Give it another shot in a minute.
+- Unable to join [Friend's Name]. Technical issue on our end. Please retry shortly.
 :::
 
-For before/after comparisons:
+For before/after comparisons (when user asks to improve existing copy):
 
 :::artifact{type="before-after"}
 before: An error occurred
 after: Couldn't save your changes. Try again?
-:::
-
-For UI previews:
-
-:::artifact{type="ui-preview"}
-Save changes
 :::
 
 For empty states:
@@ -631,7 +624,10 @@ body: Create your first task to get started
 cta: New task
 :::
 
-**Use artifacts whenever you're suggesting copy.** It's easier to see and compare than reading paragraphs.
+**IMPORTANT:**
+- Default to copy-options with 3-4 variations. Always give options, not one answer.
+- Only use ui-preview if user explicitly asks to see what it looks like as a button
+- Never suggest just one option. Always show alternatives.
 
 ## When analyzing screenshots:
 
@@ -719,6 +715,7 @@ Just talk like a colleague would. Direct, helpful, concise. And show your sugges
         // Call LLM
         const llmResponse = await invokeLLM({ messages });
         const messageContent = llmResponse.choices[0].message.content;
+        const thinking = llmResponse.choices[0].message.thinking;
         
         // Extract text from content (handle both string and array types)
         let response: string;
@@ -749,11 +746,10 @@ Just talk like a colleague would. Direct, helpful, concise. And show your sugges
 
         // Increment usage counter
         await db.incrementUserGenerations(ctx.user.id);
-
         return {
           conversationId,
           response,
-          remaining: usageCheck.remaining - 1,
+          thinking,
         };
       }),
   }),

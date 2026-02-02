@@ -13,6 +13,7 @@ interface ChatMessage {
   content: string;
   images?: string[];
   timestamp?: Date;
+  thinking?: string;
 }
 
 export default function Chat() {
@@ -173,6 +174,7 @@ export default function Chat() {
       setMessages(prev => [...prev, {
         role: 'assistant' as const,
         content: result.response,
+        thinking: result.thinking,
         timestamp: new Date()
       }]);
     } catch (error) {
@@ -276,20 +278,32 @@ export default function Chat() {
                     )}
                     
                     {message.role === 'assistant' ? (
-                      <div className="prose prose-neutral prose-base max-w-none leading-relaxed">
-                        {parseArtifacts(message.content).map((block, idx) => (
-                          block.type === 'artifact' && block.artifact ? (
-                            <ArtifactRenderer
-                              key={idx}
-                              type={block.artifact.type}
-                              content={block.artifact.content}
-                              title={block.artifact.title}
-                            />
-                          ) : (
-                            <Streamdown key={idx}>{block.content}</Streamdown>
-                          )
-                        ))}
-                      </div>
+                      <>
+                        {message.thinking && (
+                          <details className="mb-4 text-sm">
+                            <summary className="cursor-pointer text-neutral-500 hover:text-neutral-700 font-medium mb-2">
+                              💭 Thinking process
+                            </summary>
+                            <div className="mt-2 p-4 bg-neutral-50 rounded-xl border border-neutral-200 text-neutral-600 leading-relaxed whitespace-pre-wrap">
+                              {message.thinking}
+                            </div>
+                          </details>
+                        )}
+                        <div className="prose prose-neutral prose-base max-w-none leading-relaxed">
+                          {parseArtifacts(message.content).map((block, idx) => (
+                            block.type === 'artifact' && block.artifact ? (
+                              <ArtifactRenderer
+                                key={idx}
+                                type={block.artifact.type}
+                                content={block.artifact.content}
+                                title={block.artifact.title}
+                              />
+                            ) : (
+                              <Streamdown key={idx}>{block.content}</Streamdown>
+                            )
+                          ))}
+                        </div>
+                      </>
                     ) : (
                       <p className="text-[15.5px] leading-relaxed">{message.content}</p>
                     )}
