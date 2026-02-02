@@ -266,4 +266,7 @@
 
 ## Bug Fixes (NEW)
 - [x] Fix authentication sign-in loop issue
-- [ ] Fix dark theme not showing on mobile
+- [x] Fix dark theme not showing on mobile (was browser caching)
+
+## Critical Bugs (NEW)
+- [x] Fix Anthropic API system message error (must use top-level system parameter, not message role)

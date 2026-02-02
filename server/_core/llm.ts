@@ -297,10 +297,32 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     ? "claude-sonnet-4-5-20250929" // Claude Sonnet 4.5 (official Anthropic API ID)
     : "claude-sonnet-4.5"; // Manus router model ID
 
+  // Extract system messages for Anthropic API
+  let systemMessage: string | undefined;
+  let nonSystemMessages = messages;
+  
+  if (useAnthropicDirect) {
+    // Anthropic requires system messages in a separate top-level parameter
+    const systemMessages = messages.filter(m => m.role === "system");
+    nonSystemMessages = messages.filter(m => m.role !== "system");
+    
+    if (systemMessages.length > 0) {
+      // Combine multiple system messages into one
+      systemMessage = systemMessages
+        .map(m => typeof m.content === "string" ? m.content : JSON.stringify(m.content))
+        .join("\n\n");
+    }
+  }
+
   const payload: Record<string, unknown> = {
     model: modelId,
-    messages: messages.map(normalizeMessage),
+    messages: nonSystemMessages.map(normalizeMessage),
   };
+  
+  // Add system parameter for Anthropic
+  if (useAnthropicDirect && systemMessage) {
+    payload.system = systemMessage;
+  }
 
   if (tools && tools.length > 0) {
     payload.tools = tools;
