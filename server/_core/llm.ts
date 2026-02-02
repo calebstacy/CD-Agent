@@ -281,7 +281,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   } = params;
 
   const payload: Record<string, unknown> = {
-    model: "claude-sonnet-4.5",
+    model: "claude-sonnet-4-5-20250929",
     messages: messages.map(normalizeMessage),
   };
 
