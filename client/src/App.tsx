@@ -16,6 +16,7 @@ import Settings from "./pages/Settings";
 import AdminDashboard from "./pages/AdminDashboard";
 import DesignSystems from "./pages/DesignSystems";
 import Chat from "./pages/Chat";
+import PatternLibrary from "./pages/PatternLibrary";
 
 function Router() {
   return (
@@ -81,6 +82,9 @@ function Router() {
       
       {/* Chat interface - full screen, no dashboard layout */}
       <Route path={"/chat"} component={Chat} />
+      
+      {/* Pattern Library - full screen */}
+      <Route path={"/patterns"} component={PatternLibrary} />
       
       <Route path={"/settings"}>
         <DashboardLayout>

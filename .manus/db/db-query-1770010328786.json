@@ -1,0 +1,22 @@
+{
+  "query": "SELECT userId, COUNT(*) as count FROM copy_patterns GROUP BY userId; SELECT id, name FROM users LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2d9cjHoNUzKR128.4a039c46a660 --database 4iyWuXdrwSh7ScjVYNdf5v --execute SELECT userId, COUNT(*) as count FROM copy_patterns GROUP BY userId; SELECT id, name FROM users LIMIT 5;",
+  "rows": [
+    {
+      "userId": "1",
+      "count": "83"
+    },
+    {
+      "userId": "id",
+      "count": "name"
+    },
+    {
+      "userId": "1",
+      "count": "Caleb Stacy"
+    }
+  ],
+  "messages": [],
+  "stdout": "userId\tcount\n1\t83\nid\tname\n1\tCaleb Stacy\n",
+  "stderr": "",
+  "execution_time_ms": 67
+}

@@ -296,3 +296,11 @@
 - [x] Add "Save to library" button when user accepts a suggestion
 - [x] Show relevant patterns as context when iterating on copy
 - [ ] Test pattern-aware generation flow
+
+
+## Pattern Library Expansion (NEW)
+- [x] Seed database with realistic demo patterns (buttons, errors, empty states, forms, etc.)
+- [x] Build Pattern Library browser page with filtering and search
+- [x] Add CSV/JSON import functionality for bulk pattern upload
+- [x] Add GitHub codebase connection placeholder (Coming Soon modal)
+- [x] Test pattern-aware generation with seeded data
