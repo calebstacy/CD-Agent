@@ -714,6 +714,7 @@ Just talk like a colleague would. Direct, helpful, concise. And show your sugges
 
         // Call LLM
         const llmResponse = await invokeLLM({ messages });
+        console.log('[DEBUG] Model returned:', llmResponse.model);
         const messageContent = llmResponse.choices[0].message.content;
         const thinking = (llmResponse.choices[0].message as any).reasoning_content;
         

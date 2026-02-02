@@ -210,15 +210,25 @@ const normalizeToolChoice = (
 
   return toolChoice;
 };
-
-const resolveApiUrl = () =>
-  ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
+const resolveApiUrl = () => {
+  // If user has their own Anthropic API key, use it directly
+  if (ENV.anthropicApiKey && ENV.anthropicApiKey.trim().length > 0) {
+    return "https://api.anthropic.com/v1/messages";
+  }
+  // Otherwise use Manus Forge API
+  return ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
     ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`
-    : "https://forge.manus.im/v1/chat/completions";
+    : "https://api.anthropic.com/v1/messages";
+};
 
 const assertApiKey = () => {
+  // Check for Anthropic API key first
+  if (ENV.anthropicApiKey && ENV.anthropicApiKey.trim().length > 0) {
+    return; // Anthropic key is set
+  }
+  // Otherwise check for Forge API key
   if (!ENV.forgeApiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
+    throw new Error("No API key configured. Set either ANTHROPIC_API_KEY or BUILT_IN_FORGE_API_KEY");
   }
 };
 
@@ -281,8 +291,14 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     response_format,
   } = params;
 
+  // Use correct model ID based on API endpoint
+  const useAnthropicDirect = ENV.anthropicApiKey && ENV.anthropicApiKey.trim().length > 0;
+  const modelId = useAnthropicDirect 
+    ? "claude-sonnet-4-5-20250929" // Claude Sonnet 4.5 (official Anthropic API ID)
+    : "claude-sonnet-4.5"; // Manus router model ID
+
   const payload: Record<string, unknown> = {
-    model: "claude-sonnet-4-5-20250929",
+    model: modelId,
     messages: messages.map(normalizeMessage),
   };
 
@@ -315,12 +331,21 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.response_format = normalizedResponseFormat;
   }
 
+  // Determine which API key and headers to use
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  };
+  
+  if (useAnthropicDirect) {
+    headers["x-api-key"] = ENV.anthropicApiKey;
+    headers["anthropic-version"] = "2023-06-01";
+  } else {
+    headers["authorization"] = `Bearer ${ENV.forgeApiKey}`;
+  }
+
   const response = await fetch(resolveApiUrl(), {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${ENV.forgeApiKey}`,
-    },
+    headers,
     body: JSON.stringify(payload),
   });
 
@@ -331,5 +356,53 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     );
   }
 
-  return (await response.json()) as InvokeResult;
+  const rawResponse = await response.json();
+  
+  // If using Anthropic API directly, transform response to OpenAI format
+  if (useAnthropicDirect) {
+    const anthropicResponse = rawResponse as any;
+    
+    // Extract thinking content if present
+    let thinkingContent: string | undefined;
+    let textContent = "";
+    
+    if (Array.isArray(anthropicResponse.content)) {
+      for (const block of anthropicResponse.content) {
+        if (block.type === "thinking") {
+          thinkingContent = block.thinking;
+        } else if (block.type === "text") {
+          textContent += block.text;
+        }
+      }
+    } else if (typeof anthropicResponse.content === "string") {
+      textContent = anthropicResponse.content;
+    }
+    
+    // Transform to OpenAI-compatible format
+    const transformedResponse: InvokeResult = {
+      id: anthropicResponse.id,
+      created: Date.now(),
+      model: anthropicResponse.model,
+      choices: [
+        {
+          index: 0,
+          message: {
+            role: "assistant",
+            content: textContent,
+            reasoning_content: thinkingContent,
+          },
+          finish_reason: anthropicResponse.stop_reason,
+        },
+      ],
+      usage: anthropicResponse.usage ? {
+        prompt_tokens: anthropicResponse.usage.input_tokens || 0,
+        completion_tokens: anthropicResponse.usage.output_tokens || 0,
+        total_tokens: (anthropicResponse.usage.input_tokens || 0) + (anthropicResponse.usage.output_tokens || 0),
+      } : undefined,
+    };
+    
+    return transformedResponse;
+  }
+  
+  return rawResponse as InvokeResult;
 }

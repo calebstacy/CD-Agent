@@ -249,3 +249,11 @@
 - [x] Debug thinking extraction in backend - found it's `reasoning_content` not `thinking`
 - [x] Fix thinking extraction to use correct field name
 - [x] Update TypeScript types to include reasoning_content
+
+
+## Claude Model Routing (NEW)
+- [x] Test different Claude model ID formats - Manus router not recognizing them
+- [x] Request Anthropic API key from user
+- [ ] Update LLM code to call Anthropic API directly
+- [ ] Verify Claude Sonnet 4.5 is being used
+- [ ] Test reasoning quality with Claude
