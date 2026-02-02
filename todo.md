@@ -141,3 +141,39 @@
 - [x] Web app manual upload of brand guidelines
 - [x] API endpoints for design system CRUD
 - [x] Link design systems to generation flow (selector in Generate page)
+
+
+## RAG System Improvements (NEW)
+- [x] Update RAG prompts to synthesize knowledge instead of parroting rules
+- [x] Ingest 11 content design PDF books into knowledge base (7,725 chunks)
+- [x] Test generation with RAG context to ensure synthesis mode works
+- [x] Provide book recommendations for additional purchases
+
+
+## Premium Chat Interface (NEW)
+- [x] Design custom visual system (typography, spacing, colors)
+- [x] Build conversational chat page with premium aesthetic
+- [x] Integrate human personality prompt into RAG system
+- [x] Connect chat interface to tRPC backend
+- [x] Add conversation history and context management
+- [ ] Integrate Python RAG system with Node backend
+- [ ] Test full conversational flow end-to-end
+
+## Chat Interface Enhancements (NEW)
+- [x] Add image upload via file picker
+- [x] Add image paste from clipboard
+- [x] Display uploaded images in chat messages
+- [x] Enhance visual design with better hierarchy
+- [x] Add refined spacing and micro-interactions
+- [x] Add online status indicator
+- [x] Add hover effects and transitions
+- [x] Research best-in-class chat UI patterns
+- [x] Second iteration with premium refinements:
+  - Generous spacing system (12-unit scale)
+  - Larger, more readable typography (15.5px base)
+  - Refined message bubbles with proper shadows
+  - Smooth animations with staggered delays
+  - Better empty states and timestamps
+  - Cleaner input area with subtle focus states
+  - Professional color palette (neutral-focused)
+  - Improved image handling and previews

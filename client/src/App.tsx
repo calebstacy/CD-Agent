@@ -15,6 +15,7 @@ import TeamDetail from "./pages/TeamDetail";
 import Settings from "./pages/Settings";
 import AdminDashboard from "./pages/AdminDashboard";
 import DesignSystems from "./pages/DesignSystems";
+import Chat from "./pages/Chat";
 
 function Router() {
   return (
@@ -74,6 +75,9 @@ function Router() {
           <DesignSystems />
         </DashboardLayout>
       </Route>
+      
+      {/* Chat interface - full screen, no dashboard layout */}
+      <Route path={"/chat"} component={Chat} />
       
       <Route path={"/settings"}>
         <DashboardLayout>

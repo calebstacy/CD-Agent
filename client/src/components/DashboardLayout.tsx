@@ -21,13 +21,14 @@ import {
 } from "@/components/ui/sidebar";
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, Users, Sparkles, FolderKanban, Library, Palette, Settings as SettingsIcon, Shield } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, Users, Sparkles, FolderKanban, Library, Palette, Settings as SettingsIcon, Shield, MessageSquare } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 
 const menuItems = [
+  { icon: MessageSquare, label: "Chat", path: "/chat" },
   { icon: Sparkles, label: "Generate", path: "/generate" },
   { icon: FolderKanban, label: "Projects", path: "/projects" },
   { icon: Library, label: "Library", path: "/library" },

@@ -495,6 +495,43 @@ export const appRouter = router({
       }),
   }),
 
+  // Chat interface
+  chat: router({ send: protectedProcedure
+      .input(
+        z.object({
+          message: z.string().min(1),
+          conversationHistory: z.array(
+            z.object({
+              role: z.enum(["user", "assistant"]),
+              content: z.string(),
+            })
+          ).optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        // Check usage limits
+        const usageCheck = await checkUsageLimit(ctx.user.id);
+        if (!usageCheck.allowed) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Monthly generation limit reached. Please upgrade your plan.",
+          });
+        }
+
+        // TODO: Integrate with Python RAG system
+        // For now, return a placeholder response
+        const response = "This is where the conversational RAG system will respond. Integration coming soon!";
+
+        // Increment usage counter
+        await db.incrementUserGenerations(ctx.user.id);
+
+        return {
+          response,
+          remaining: usageCheck.remaining - 1,
+        };
+      }),
+  }),
+
   // Admin endpoints
   admin: router({
     users: protectedProcedure.query(async ({ ctx }) => {
