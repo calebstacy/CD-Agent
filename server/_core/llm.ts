@@ -88,6 +88,7 @@ export type InvokeResult = {
       content: string | Array<TextContent | ImageContent | FileContent>;
       tool_calls?: ToolCall[];
       thinking?: string;
+      reasoning_content?: string;
     };
     finish_reason: string | null;
   }>;

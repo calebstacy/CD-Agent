@@ -242,3 +242,10 @@
 - [x] Display thinking process in chat UI (collapsible details element)
 - [x] Style thinking section distinctly from main response (neutral bg, rounded)
 - [ ] Test thinking mode with complex content design questions
+
+
+## Thinking Mode Debug (NEW)
+- [x] Check actual API response format for thinking content
+- [x] Debug thinking extraction in backend - found it's `reasoning_content` not `thinking`
+- [x] Fix thinking extraction to use correct field name
+- [x] Update TypeScript types to include reasoning_content
