@@ -263,3 +263,7 @@
 - [x] Add animated thinking steps UI component with text highlighting
 - [x] Implement content design-specific thinking steps (design standards, character count, UXR, patterns, etc.)
 - [x] Update chat interface to dark gray theme (replace white background)
+
+## Bug Fixes (NEW)
+- [x] Fix authentication sign-in loop issue
+- [ ] Fix dark theme not showing on mobile

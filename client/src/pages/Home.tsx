@@ -22,7 +22,7 @@ export default function Home() {
               <a href="#pricing">Pricing</a>
             </Button>
             <Button asChild>
-              <a href={getLoginUrl()}>Get Started</a>
+              <Link href="/chat">Get Started</Link>
             </Button>
           </div>
         </div>
@@ -48,9 +48,9 @@ export default function Home() {
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" asChild>
-                <a href={getLoginUrl()}>
+                <Link href="/chat">
                   Start Free Trial
-                </a>
+                </Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
                 <Link href="/generate">See Demo</Link>
@@ -175,7 +175,7 @@ export default function Home() {
                   </li>
                 </ul>
                 <Button className="w-full" variant="outline" asChild>
-                  <a href={getLoginUrl()}>Get Started</a>
+                  <Link href="/chat">Get Started</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -213,7 +213,7 @@ export default function Home() {
                   </li>
                 </ul>
                 <Button className="w-full" asChild>
-                  <a href={getLoginUrl()}>Start Trial</a>
+                  <Link href="/chat">Start Trial</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -252,7 +252,7 @@ export default function Home() {
                   </li>
                 </ul>
                 <Button className="w-full" asChild>
-                  <a href={getLoginUrl()}>Start Trial</a>
+                  <Link href="/chat">Start Trial</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -315,9 +315,9 @@ export default function Home() {
             Join hundreds of teams using AI to create better UX copy faster
           </p>
           <Button size="lg" variant="secondary" asChild>
-            <a href={getLoginUrl()}>
+            <Link href="/chat">
               Start Free Trial
-            </a>
+            </Link>
           </Button>
         </div>
       </section>
