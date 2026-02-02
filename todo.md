@@ -319,3 +319,10 @@
 - [ ] Update chat/generation to use active workspace context
 - [x] Seed demo workspaces: "Meta Foundation", "Reality Labs", "Horizon", "Instagram", "WhatsApp"
 - [x] Test domain-specific generation with workspace context
+
+
+## RAG Vector Search & README (NEW)
+- [x] Add vector embeddings for knowledge documents (TF-IDF-like, upgradeable to OpenAI)
+- [x] Implement semantic search for RAG queries
+- [x] Create comprehensive Manus-specific README with build instructions
+- [ ] Push updates to GitHub
