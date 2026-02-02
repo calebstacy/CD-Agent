@@ -304,3 +304,18 @@
 - [x] Add CSV/JSON import functionality for bulk pattern upload
 - [x] Add GitHub codebase connection placeholder (Coming Soon modal)
 - [x] Test pattern-aware generation with seeded data
+
+
+## Multi-Tenant Workspace System (NEW)
+- [x] Design database schema for workspaces (id, name, slug, description, parentId for inheritance)
+- [x] Add knowledgeBase table for RAG documents per workspace (living guidance)
+- [x] Add workspaceMembers table for access control
+- [x] Link patterns to workspaces (workspaceId foreign key)
+- [x] Push database migration
+- [x] Build workspace switcher UI in header/sidebar
+- [ ] Create workspace management page (create, edit, delete workspaces)
+- [ ] Build knowledge base upload UI for living guidance docs
+- [x] Implement workspace inheritance (child inherits parent's knowledge + patterns)
+- [ ] Update chat/generation to use active workspace context
+- [x] Seed demo workspaces: "Meta Foundation", "Reality Labs", "Horizon", "Instagram", "WhatsApp"
+- [x] Test domain-specific generation with workspace context

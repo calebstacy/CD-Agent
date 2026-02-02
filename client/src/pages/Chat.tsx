@@ -8,6 +8,7 @@ import { parseArtifacts } from '@/lib/parseArtifacts';
 import { ArtifactRenderer } from '@/components/ArtifactRenderer';
 import { ThinkingSteps } from '@/components/ThinkingSteps';
 import { ConversationSidebar } from '@/components/ConversationSidebar';
+import { WorkspaceSwitcher } from '@/components/WorkspaceSwitcher';
 import { toast } from 'sonner';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { cn } from '@/lib/utils';
@@ -37,6 +38,7 @@ export default function Chat() {
   const [showSlashCommands, setShowSlashCommands] = useState(false);
   const [filteredCommands, setFilteredCommands] = useState<any[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -280,7 +282,7 @@ export default function Chat() {
         <header className="border-b border-neutral-800 bg-neutral-900/95 backdrop-blur-sm sticky top-0 z-10">
           <div className="max-w-5xl mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -289,6 +291,12 @@ export default function Chat() {
                 >
                   <Menu className="w-5 h-5" />
                 </Button>
+                {user && (
+                  <WorkspaceSwitcher
+                    activeWorkspaceId={activeWorkspaceId}
+                    onWorkspaceChange={setActiveWorkspaceId}
+                  />
+                )}
                 <div className="relative">
                   <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center border border-blue-500/20">
                     <Sparkles className="w-5 h-5 text-blue-400" strokeWidth={2} />

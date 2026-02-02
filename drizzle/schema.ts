@@ -415,6 +415,7 @@ export const copyPatterns = mysqlTable("copy_patterns", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
   projectId: int("projectId"),
+  workspaceId: int("workspaceId"),
   
   // Pattern content
   componentType: mysqlEnum("componentType", [
@@ -457,6 +458,138 @@ export const copyPatternsRelations = relations(copyPatterns, ({ one }) => ({
   }),
 }));
 
+/**
+ * Workspaces - domain-specific knowledge containers (e.g., Horizon, Instagram)
+ */
+export const workspaces = mysqlTable("workspaces", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 100 }).notNull().unique(),
+  description: text("description"),
+  icon: varchar("icon", { length: 100 }), // emoji or icon name
+  color: varchar("color", { length: 20 }), // hex color for UI
+  
+  // Hierarchy - allows inheritance (e.g., Horizon inherits from Meta Foundation)
+  parentId: int("parentId"),
+  
+  // Owner
+  ownerId: int("ownerId").notNull(),
+  
+  // Settings
+  isPublic: boolean("isPublic").default(false).notNull(), // visible to all org members
+  isArchived: boolean("isArchived").default(false).notNull(),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const workspacesRelations = relations(workspaces, ({ one, many }) => ({
+  owner: one(users, {
+    fields: [workspaces.ownerId],
+    references: [users.id],
+  }),
+  parent: one(workspaces, {
+    fields: [workspaces.parentId],
+    references: [workspaces.id],
+  }),
+  members: many(workspaceMembers),
+  knowledgeDocuments: many(knowledgeDocuments),
+  patterns: many(copyPatterns),
+}));
+
+/**
+ * Workspace Members - access control for workspaces
+ */
+export const workspaceMembers = mysqlTable("workspace_members", {
+  id: int("id").autoincrement().primaryKey(),
+  workspaceId: int("workspaceId").notNull(),
+  userId: int("userId").notNull(),
+  role: mysqlEnum("role", ["owner", "admin", "editor", "viewer"]).default("viewer").notNull(),
+  joinedAt: timestamp("joinedAt").defaultNow().notNull(),
+});
+
+export const workspaceMembersRelations = relations(workspaceMembers, ({ one }) => ({
+  workspace: one(workspaces, {
+    fields: [workspaceMembers.workspaceId],
+    references: [workspaces.id],
+  }),
+  user: one(users, {
+    fields: [workspaceMembers.userId],
+    references: [users.id],
+  }),
+}));
+
+/**
+ * Knowledge Documents - RAG documents for living guidance per workspace
+ */
+export const knowledgeDocuments = mysqlTable("knowledge_documents", {
+  id: int("id").autoincrement().primaryKey(),
+  workspaceId: int("workspaceId").notNull(),
+  
+  // Document info
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  category: mysqlEnum("category", [
+    "style_guide", "voice_tone", "terminology", "research",
+    "best_practices", "component_guidelines", "accessibility", "other"
+  ]).notNull(),
+  
+  // Content
+  content: text("content").notNull(), // Full text content for RAG
+  sourceUrl: text("sourceUrl"), // Original document URL
+  sourceType: mysqlEnum("sourceType", ["upload", "url", "manual"]).default("manual").notNull(),
+  
+  // Metadata
+  version: varchar("version", { length: 50 }), // e.g., "v2.1" for style guide versions
+  lastReviewedAt: timestamp("lastReviewedAt"),
+  reviewedBy: int("reviewedBy"),
+  
+  // Status
+  isActive: boolean("isActive").default(true).notNull(),
+  
+  // Chunking for RAG
+  chunkCount: int("chunkCount").default(0).notNull(),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const knowledgeDocumentsRelations = relations(knowledgeDocuments, ({ one, many }) => ({
+  workspace: one(workspaces, {
+    fields: [knowledgeDocuments.workspaceId],
+    references: [workspaces.id],
+  }),
+  reviewer: one(users, {
+    fields: [knowledgeDocuments.reviewedBy],
+    references: [users.id],
+  }),
+  chunks: many(knowledgeChunks),
+}));
+
+/**
+ * Knowledge Chunks - RAG chunks for semantic search
+ */
+export const knowledgeChunks = mysqlTable("knowledge_chunks", {
+  id: int("id").autoincrement().primaryKey(),
+  documentId: int("documentId").notNull(),
+  
+  // Chunk content
+  content: text("content").notNull(),
+  chunkIndex: int("chunkIndex").notNull(), // Order within document
+  
+  // Embedding for semantic search
+  embedding: json("embedding").$type<number[]>(),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const knowledgeChunksRelations = relations(knowledgeChunks, ({ one }) => ({
+  document: one(knowledgeDocuments, {
+    fields: [knowledgeChunks.documentId],
+    references: [knowledgeDocuments.id],
+  }),
+}));
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
@@ -484,3 +617,11 @@ export type Message = typeof messages.$inferSelect;
 export type InsertMessage = typeof messages.$inferInsert;
 export type CopyPattern = typeof copyPatterns.$inferSelect;
 export type InsertCopyPattern = typeof copyPatterns.$inferInsert;
+export type Workspace = typeof workspaces.$inferSelect;
+export type InsertWorkspace = typeof workspaces.$inferInsert;
+export type WorkspaceMember = typeof workspaceMembers.$inferSelect;
+export type InsertWorkspaceMember = typeof workspaceMembers.$inferInsert;
+export type KnowledgeDocument = typeof knowledgeDocuments.$inferSelect;
+export type InsertKnowledgeDocument = typeof knowledgeDocuments.$inferInsert;
+export type KnowledgeChunk = typeof knowledgeChunks.$inferSelect;
+export type InsertKnowledgeChunk = typeof knowledgeChunks.$inferInsert;

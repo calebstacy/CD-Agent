@@ -992,6 +992,263 @@ The user has saved these patterns from their product. Use them as reference for 
       };
     }),
   }),
+
+  // Workspaces - domain-specific knowledge containers
+  workspaces: router({
+    // Create a new workspace
+    create: protectedProcedure
+      .input(
+        z.object({
+          name: z.string().min(1).max(255),
+          slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/),
+          description: z.string().optional(),
+          icon: z.string().optional(),
+          color: z.string().optional(),
+          parentId: z.number().optional(),
+          isPublic: z.boolean().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const workspaceDb = await import("./workspaceDb");
+        return workspaceDb.createWorkspace({
+          ...input,
+          ownerId: ctx.user.id,
+        });
+      }),
+
+    // List workspaces for current user
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const workspaceDb = await import("./workspaceDb");
+      return workspaceDb.listWorkspacesForUser(ctx.user.id);
+    }),
+
+    // Get workspace by ID
+    get: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        const workspaceDb = await import("./workspaceDb");
+        return workspaceDb.getWorkspaceById(input.id);
+      }),
+
+    // Get workspace by slug
+    getBySlug: protectedProcedure
+      .input(z.object({ slug: z.string() }))
+      .query(async ({ input }) => {
+        const workspaceDb = await import("./workspaceDb");
+        return workspaceDb.getWorkspaceBySlug(input.slug);
+      }),
+
+    // Update workspace
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          name: z.string().min(1).max(255).optional(),
+          description: z.string().optional(),
+          icon: z.string().optional(),
+          color: z.string().optional(),
+          isPublic: z.boolean().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const workspaceDb = await import("./workspaceDb");
+        const { id, ...data } = input;
+        
+        // Check permission
+        const role = await workspaceDb.getUserWorkspaceRole(id, ctx.user.id);
+        if (!role || (role !== "owner" && role !== "admin")) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Not authorized to update this workspace" });
+        }
+        
+        await workspaceDb.updateWorkspace(id, data);
+        return { success: true };
+      }),
+
+    // Delete (archive) workspace
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const workspaceDb = await import("./workspaceDb");
+        
+        // Check permission - only owner can delete
+        const role = await workspaceDb.getUserWorkspaceRole(input.id, ctx.user.id);
+        if (role !== "owner") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Only workspace owner can delete" });
+        }
+        
+        await workspaceDb.deleteWorkspace(input.id);
+        return { success: true };
+      }),
+
+    // Get workspace with inheritance chain
+    getWithAncestors: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        const workspaceDb = await import("./workspaceDb");
+        return workspaceDb.getWorkspaceWithAncestors(input.id);
+      }),
+  }),
+
+  // Knowledge Documents - RAG content per workspace
+  knowledge: router({
+    // Create a knowledge document
+    create: protectedProcedure
+      .input(
+        z.object({
+          workspaceId: z.number(),
+          title: z.string().min(1).max(255),
+          description: z.string().optional(),
+          category: z.enum([
+            "style_guide", "voice_tone", "terminology", "research",
+            "best_practices", "component_guidelines", "accessibility", "other"
+          ]),
+          content: z.string().min(1),
+          sourceUrl: z.string().optional(),
+          sourceType: z.enum(["upload", "url", "manual"]).optional(),
+          version: z.string().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const workspaceDb = await import("./workspaceDb");
+        
+        // Check permission
+        const role = await workspaceDb.getUserWorkspaceRole(input.workspaceId, ctx.user.id);
+        if (!role || role === "viewer") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Not authorized to add documents" });
+        }
+        
+        const doc = await workspaceDb.createKnowledgeDocument(input);
+        
+        // Chunk the content for RAG
+        const chunks = chunkContent(input.content);
+        await workspaceDb.createKnowledgeChunks(doc.id, chunks);
+        
+        return doc;
+      }),
+
+    // List documents for a workspace
+    list: protectedProcedure
+      .input(
+        z.object({
+          workspaceId: z.number(),
+          category: z.string().optional(),
+        })
+      )
+      .query(async ({ input }) => {
+        const workspaceDb = await import("./workspaceDb");
+        return workspaceDb.listKnowledgeDocuments(input.workspaceId, input.category);
+      }),
+
+    // Get inherited documents (includes parent workspaces)
+    getInherited: protectedProcedure
+      .input(z.object({ workspaceId: z.number() }))
+      .query(async ({ input }) => {
+        const workspaceDb = await import("./workspaceDb");
+        return workspaceDb.getInheritedKnowledgeDocuments(input.workspaceId);
+      }),
+
+    // Update a document
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          title: z.string().min(1).max(255).optional(),
+          description: z.string().optional(),
+          category: z.enum([
+            "style_guide", "voice_tone", "terminology", "research",
+            "best_practices", "component_guidelines", "accessibility", "other"
+          ]).optional(),
+          content: z.string().optional(),
+          version: z.string().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const workspaceDb = await import("./workspaceDb");
+        const { id, content, ...data } = input;
+        
+        // Get document to check workspace
+        const doc = await workspaceDb.getKnowledgeDocumentById(id);
+        if (!doc) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        
+        // Check permission
+        const role = await workspaceDb.getUserWorkspaceRole(doc.workspaceId, ctx.user.id);
+        if (!role || role === "viewer") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        
+        await workspaceDb.updateKnowledgeDocument(id, data);
+        
+        // Re-chunk if content changed
+        if (content) {
+          await workspaceDb.deleteChunksForDocument(id);
+          const chunks = chunkContent(content);
+          await workspaceDb.createKnowledgeChunks(id, chunks);
+          await workspaceDb.updateKnowledgeDocument(id, { content });
+        }
+        
+        return { success: true };
+      }),
+
+    // Delete a document
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const workspaceDb = await import("./workspaceDb");
+        
+        const doc = await workspaceDb.getKnowledgeDocumentById(input.id);
+        if (!doc) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        
+        const role = await workspaceDb.getUserWorkspaceRole(doc.workspaceId, ctx.user.id);
+        if (!role || role === "viewer") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        
+        await workspaceDb.deleteKnowledgeDocument(input.id);
+        return { success: true };
+      }),
+
+    // Search knowledge chunks
+    search: protectedProcedure
+      .input(
+        z.object({
+          workspaceId: z.number(),
+          query: z.string().min(1),
+          limit: z.number().min(1).max(50).optional(),
+        })
+      )
+      .query(async ({ input }) => {
+        const workspaceDb = await import("./workspaceDb");
+        return workspaceDb.searchKnowledgeChunks(input.workspaceId, input.query, input.limit);
+      }),
+  }),
 });
+
+// Helper function to chunk content for RAG
+function chunkContent(content: string, maxChunkSize = 1000): { content: string; chunkIndex: number }[] {
+  const paragraphs = content.split(/\n\n+/);
+  const chunks: { content: string; chunkIndex: number }[] = [];
+  let currentChunk = "";
+  let chunkIndex = 0;
+
+  for (const paragraph of paragraphs) {
+    if (currentChunk.length + paragraph.length > maxChunkSize && currentChunk.length > 0) {
+      chunks.push({ content: currentChunk.trim(), chunkIndex });
+      chunkIndex++;
+      currentChunk = paragraph;
+    } else {
+      currentChunk += (currentChunk ? "\n\n" : "") + paragraph;
+    }
+  }
+
+  if (currentChunk.trim()) {
+    chunks.push({ content: currentChunk.trim(), chunkIndex });
+  }
+
+  return chunks;
+}
 
 export type AppRouter = typeof appRouter;
