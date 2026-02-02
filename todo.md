@@ -210,3 +210,8 @@
 - [x] Update system prompt for better image analysis
 - [ ] Add thinking mode (extended reasoning) to LLM calls
 - [ ] Test image analysis with screenshots
+
+## AI Response Quality (NEW)
+- [x] Fix verbosity - responses are too long and over-explained
+- [x] Rewrite system prompt to be more concise and direct
+- [ ] Test with same screenshot to verify improvement
