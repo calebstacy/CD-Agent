@@ -6,6 +6,7 @@ import { trpc } from '@/lib/trpc';
 import { Streamdown } from 'streamdown';
 import { parseArtifacts } from '@/lib/parseArtifacts';
 import { ArtifactRenderer } from '@/components/ArtifactRenderer';
+import { ThinkingSteps } from '@/components/ThinkingSteps';
 import { toast } from 'sonner';
 
 interface ChatMessage {
@@ -217,21 +218,21 @@ export default function Chat() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-white">
+    <div className="flex flex-col h-screen bg-neutral-900">
       {/* Header */}
-      <header className="border-b border-neutral-200 bg-white sticky top-0 z-10">
+      <header className="border-b border-neutral-800 bg-neutral-900 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="relative">
-                <div className="w-11 h-11 rounded-2xl bg-neutral-900 flex items-center justify-center">
-                  <Sparkles className="w-5 h-5 text-white" strokeWidth={2} />
+                <div className="w-11 h-11 rounded-2xl bg-neutral-800 flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-blue-400" strokeWidth={2} />
                 </div>
-                <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white"></div>
+                <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-neutral-900"></div>
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-neutral-900 tracking-tight">Content Design Partner</h1>
-                <p className="text-sm text-neutral-500 mt-0.5">Online · Ready to help</p>
+                <h1 className="text-lg font-semibold text-white tracking-tight">Content Design Partner</h1>
+                <p className="text-sm text-neutral-400 mt-0.5">Online · Ready to help</p>
               </div>
             </div>
           </div>
@@ -239,7 +240,7 @@ export default function Chat() {
       </header>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto bg-neutral-50/30">
+      <div className="flex-1 overflow-y-auto bg-neutral-900">
         <div className="max-w-4xl mx-auto px-8 py-12">
           <div className="space-y-12">
             {messages.map((message, index) => (
@@ -251,8 +252,8 @@ export default function Chat() {
                 style={{ animationDelay: `${index * 50}ms` }}
               >
                 {message.role === 'assistant' && (
-                  <div className="w-10 h-10 rounded-2xl bg-neutral-900 flex items-center justify-center flex-shrink-0 mt-1">
-                    <Sparkles className="w-4 h-4 text-white" strokeWidth={2} />
+                  <div className="w-10 h-10 rounded-2xl bg-neutral-800 flex items-center justify-center flex-shrink-0 mt-1">
+                    <Sparkles className="w-4 h-4 text-blue-400" strokeWidth={2} />
                   </div>
                 )}
                 
@@ -260,8 +261,8 @@ export default function Chat() {
                   <div
                     className={`${
                       message.role === 'user'
-                        ? 'bg-neutral-900 text-white rounded-3xl rounded-tr-lg px-6 py-4 shadow-sm'
-                        : 'text-neutral-800'
+                        ? 'bg-neutral-800 text-white rounded-3xl rounded-tr-lg px-6 py-4 shadow-sm'
+                        : 'text-neutral-200'
                     }`}
                   >
                     {message.images && message.images.length > 0 && (
@@ -281,15 +282,15 @@ export default function Chat() {
                       <>
                         {message.thinking && (
                           <details className="mb-4 text-sm">
-                            <summary className="cursor-pointer text-neutral-500 hover:text-neutral-700 font-medium mb-2">
+                            <summary className="cursor-pointer text-neutral-400 hover:text-neutral-300 font-medium mb-2">
                               💭 Thinking process
                             </summary>
-                            <div className="mt-2 p-4 bg-neutral-50 rounded-xl border border-neutral-200 text-neutral-600 leading-relaxed whitespace-pre-wrap">
+                            <div className="mt-2 p-4 bg-neutral-800 rounded-xl border border-neutral-700 text-neutral-300 leading-relaxed whitespace-pre-wrap">
                               {message.thinking}
                             </div>
                           </details>
                         )}
-                        <div className="prose prose-neutral prose-base max-w-none leading-relaxed">
+                        <div className="prose prose-invert prose-base max-w-none leading-relaxed">
                           {parseArtifacts(message.content).map((block, idx) => (
                             block.type === 'artifact' && block.artifact ? (
                               <ArtifactRenderer
@@ -324,21 +325,7 @@ export default function Chat() {
               </div>
             ))}
 
-            {isGenerating && (
-              <div className="flex gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="w-10 h-10 rounded-2xl bg-neutral-900 flex items-center justify-center flex-shrink-0 mt-1">
-                  <Sparkles className="w-4 h-4 text-white animate-pulse" strokeWidth={2} />
-                </div>
-                <div className="flex items-center gap-3 text-neutral-500 text-sm mt-2">
-                  <div className="flex gap-1.5">
-                    <div className="w-2 h-2 rounded-full bg-neutral-400 animate-bounce" style={{ animationDelay: '0ms', animationDuration: '1s' }} />
-                    <div className="w-2 h-2 rounded-full bg-neutral-400 animate-bounce" style={{ animationDelay: '200ms', animationDuration: '1s' }} />
-                    <div className="w-2 h-2 rounded-full bg-neutral-400 animate-bounce" style={{ animationDelay: '400ms', animationDuration: '1s' }} />
-                  </div>
-                  <span className="font-medium">Thinking...</span>
-                </div>
-              </div>
-            )}
+            <ThinkingSteps isGenerating={isGenerating} />
 
             <div ref={messagesEndRef} />
           </div>
@@ -346,7 +333,7 @@ export default function Chat() {
       </div>
 
       {/* Input */}
-      <div className="border-t border-neutral-200 bg-white">
+      <div className="border-t border-neutral-800 bg-neutral-900">
         <div className="max-w-4xl mx-auto px-8 py-6">
           {/* Image previews */}
           {uploadedImages.length > 0 && (
@@ -373,37 +360,37 @@ export default function Chat() {
           {showSlashCommands && filteredCommands.length > 0 && (
             <div 
               ref={commandsRef}
-              className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-2xl border-2 border-neutral-200 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200"
+              className="absolute bottom-full left-0 right-0 mb-2 bg-neutral-800 rounded-2xl border-2 border-neutral-700 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200"
             >
               <div className="p-2 space-y-1 max-h-80 overflow-y-auto">
                 {filteredCommands.map((cmd, index) => (
                   <button
                     key={cmd.command}
                     onClick={() => selectCommand(cmd)}
-                    className="w-full text-left px-4 py-3 rounded-xl hover:bg-neutral-50 transition-colors group"
+                    className="w-full text-left px-4 py-3 rounded-xl hover:bg-neutral-700 transition-colors group"
                   >
                     <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-neutral-900 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <Command className="w-4 h-4 text-white" strokeWidth={2} />
+                      <div className="w-8 h-8 rounded-lg bg-neutral-700 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Command className="w-4 h-4 text-blue-400" strokeWidth={2} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm font-medium text-neutral-900">{cmd.command}</span>
-                          <span className="text-sm text-neutral-600">{cmd.label}</span>
+                          <span className="font-mono text-sm font-medium text-white">{cmd.command}</span>
+                          <span className="text-sm text-neutral-300">{cmd.label}</span>
                         </div>
-                        <p className="text-xs text-neutral-500 mt-0.5">{cmd.description}</p>
+                        <p className="text-xs text-neutral-400 mt-0.5">{cmd.description}</p>
                       </div>
                     </div>
                   </button>
                 ))}
               </div>
-              <div className="px-4 py-2 bg-neutral-50 border-t border-neutral-200">
+              <div className="px-4 py-2 bg-neutral-900 border-t border-neutral-700">
                 <p className="text-xs text-neutral-500 font-mono">↑↓ navigate · ⏎ select · esc close</p>
               </div>
             </div>
           )}
 
-          <div className="relative bg-neutral-50 rounded-2xl border-2 border-neutral-200 focus-within:border-neutral-400 focus-within:bg-white transition-all">
+          <div className="relative bg-neutral-800 rounded-2xl border-2 border-neutral-700 focus-within:border-neutral-600 transition-all">
             <Textarea
               ref={textareaRef}
               value={input}
@@ -411,7 +398,7 @@ export default function Chat() {
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               placeholder="Describe what you're working on, or paste an image..."
-              className="min-h-[56px] max-h-[200px] px-5 py-4 pr-28 resize-none border-0 bg-transparent focus:ring-0 text-[15.5px] leading-relaxed placeholder:text-neutral-400"
+              className="min-h-[56px] max-h-[200px] px-5 py-4 pr-28 resize-none border-0 bg-transparent focus:ring-0 focus-visible:ring-0 text-[15.5px] leading-relaxed text-white placeholder:text-neutral-500"
               disabled={isGenerating}
               rows={1}
             />
@@ -430,17 +417,17 @@ export default function Chat() {
                 disabled={isGenerating}
                 size="icon"
                 variant="ghost"
-                className="w-9 h-9 rounded-xl hover:bg-neutral-200 transition-colors"
+                className="w-9 h-9 rounded-xl hover:bg-neutral-700 transition-colors"
               >
-                <Paperclip className="w-4 h-4 text-neutral-600" strokeWidth={2} />
+                <Paperclip className="w-4 h-4 text-neutral-400" strokeWidth={2} />
               </Button>
               <Button
                 onClick={handleSend}
                 disabled={(!input.trim() && uploadedImages.length === 0) || isGenerating}
                 size="icon"
-                className="w-9 h-9 rounded-xl bg-neutral-900 hover:bg-neutral-800 disabled:opacity-30 shadow-sm hover:shadow-md transition-all"
+                className="w-9 h-9 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-30 shadow-sm hover:shadow-md transition-all"
               >
-                <Send className="w-4 h-4" strokeWidth={2} />
+                <Send className="w-4 h-4 text-white" strokeWidth={2} />
               </Button>
             </div>
           </div>

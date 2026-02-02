@@ -257,3 +257,9 @@
 - [ ] Update LLM code to call Anthropic API directly
 - [ ] Verify Claude Sonnet 4.5 is being used
 - [ ] Test reasoning quality with Claude
+
+
+## Animated Thinking Steps (NEW)
+- [x] Add animated thinking steps UI component with text highlighting
+- [x] Implement content design-specific thinking steps (design standards, character count, UXR, patterns, etc.)
+- [x] Update chat interface to dark gray theme (replace white background)
