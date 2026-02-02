@@ -347,6 +347,67 @@ export const contentExamplesRelations = relations(contentExamples, ({ one }) => 
   }),
 }));
 
+/**
+ * Conversations - chat conversation sessions
+ */
+export const conversations = mysqlTable("conversations", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  title: varchar("title", { length: 255 }),
+  
+  // Conversation metadata
+  designSystemId: int("designSystemId"),
+  projectId: int("projectId"),
+  
+  // Status
+  isArchived: boolean("isArchived").default(false).notNull(),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const conversationsRelations = relations(conversations, ({ one, many }) => ({
+  user: one(users, {
+    fields: [conversations.userId],
+    references: [users.id],
+  }),
+  designSystem: one(designSystems, {
+    fields: [conversations.designSystemId],
+    references: [designSystems.id],
+  }),
+  project: one(projects, {
+    fields: [conversations.projectId],
+    references: [projects.id],
+  }),
+  messages: many(messages),
+}));
+
+/**
+ * Messages - individual messages in conversations
+ */
+export const messages = mysqlTable("messages", {
+  id: int("id").autoincrement().primaryKey(),
+  conversationId: int("conversationId").notNull(),
+  
+  // Message content
+  role: mysqlEnum("role", ["user", "assistant", "system"]).notNull(),
+  content: text("content").notNull(),
+  images: json("images").$type<Array<{ url: string; alt?: string }>>(),
+  
+  // Metadata
+  model: varchar("model", { length: 100 }),
+  tokensUsed: int("tokensUsed"),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  conversation: one(conversations, {
+    fields: [messages.conversationId],
+    references: [conversations.id],
+  }),
+}));
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
@@ -368,3 +429,7 @@ export type BrandVoiceProfile = typeof brandVoiceProfiles.$inferSelect;
 export type InsertBrandVoiceProfile = typeof brandVoiceProfiles.$inferInsert;
 export type ContentExample = typeof contentExamples.$inferSelect;
 export type InsertContentExample = typeof contentExamples.$inferInsert;
+export type Conversation = typeof conversations.$inferSelect;
+export type InsertConversation = typeof conversations.$inferInsert;
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = typeof messages.$inferInsert;

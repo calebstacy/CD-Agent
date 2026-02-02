@@ -188,3 +188,25 @@
 - [ ] Implement conversation persistence (save/load chat sessions)
 - [ ] Add streaming response support (SSE or WebSocket)
 - [ ] Optional: Build FastAPI wrapper for Python RAG book knowledge
+
+
+## Chat Enhancements - Phase 2 (NEW)
+- [x] Update LLM to use Claude Sonnet 4.5
+- [x] Add conversations table to database schema
+- [x] Add messages table to database schema
+- [x] Push database migration
+- [x] Implement conversation persistence (save/load)
+- [x] Add conversation CRUD endpoints (create, list, get, updateTitle, archive)
+- [x] Update chat.send to save messages to database
+- [ ] Add streaming response support (SSE)
+- [ ] Build conversation history sidebar UI
+- [ ] Add new conversation button
+- [ ] Add conversation search/filter
+- [ ] Test complete chat system with all features
+
+
+## Chat Bug Fixes (NEW)
+- [x] Fix image upload - images not being sent to LLM
+- [x] Update system prompt for better image analysis
+- [ ] Add thinking mode (extended reasoning) to LLM calls
+- [ ] Test image analysis with screenshots

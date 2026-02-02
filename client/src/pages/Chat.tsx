@@ -24,6 +24,7 @@ export default function Chat() {
   const [input, setInput] = useState('');
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [conversationId, setConversationId] = useState<number | undefined>(undefined);
   const [showSlashCommands, setShowSlashCommands] = useState(false);
   const [filteredCommands, setFilteredCommands] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -158,8 +159,14 @@ export default function Chat() {
     try {
       const result = await chatMutation.mutateAsync({
         message: userMessage || 'Please analyze this image',
-        conversationHistory: messages.map(m => ({ role: m.role, content: m.content })),
+        conversationId: conversationId,
+        images: images.length > 0 ? images.map(url => ({ url })) : undefined,
       });
+      
+      // Update conversation ID if this was the first message
+      if (!conversationId && result.conversationId) {
+        setConversationId(result.conversationId);
+      }
       
       setMessages(prev => [...prev, {
         role: 'assistant' as const,

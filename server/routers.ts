@@ -497,16 +497,81 @@ export const appRouter = router({
   }),
 
   // Chat interface
-  chat: router({ send: protectedProcedure
+  chat: router({
+    // Create new conversation
+    create: protectedProcedure
       .input(
         z.object({
+          title: z.string().optional(),
+          designSystemId: z.number().optional(),
+          projectId: z.number().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const conversationDb = await import("./conversationDb");
+        const conversationId = await conversationDb.createConversation({
+          userId: ctx.user.id,
+          title: input.title,
+          designSystemId: input.designSystemId,
+          projectId: input.projectId,
+        });
+        return { conversationId };
+      }),
+
+    // Get conversation list
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const conversationDb = await import("./conversationDb");
+      return conversationDb.getConversationsByUserId(ctx.user.id);
+    }),
+
+    // Get conversation with messages
+    get: protectedProcedure
+      .input(z.object({ conversationId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const conversationDb = await import("./conversationDb");
+        const conversation = await conversationDb.getConversationWithMessages(input.conversationId);
+        if (!conversation || conversation.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        return conversation;
+      }),
+
+    // Update conversation title
+    updateTitle: protectedProcedure
+      .input(
+        z.object({
+          conversationId: z.number(),
+          title: z.string(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const conversationDb = await import("./conversationDb");
+        const conversation = await conversationDb.getConversationById(input.conversationId);
+        if (!conversation || conversation.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        await conversationDb.updateConversationTitle(input.conversationId, input.title);
+      }),
+
+    // Archive conversation
+    archive: protectedProcedure
+      .input(z.object({ conversationId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const conversationDb = await import("./conversationDb");
+        const conversation = await conversationDb.getConversationById(input.conversationId);
+        if (!conversation || conversation.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        await conversationDb.archiveConversation(input.conversationId);
+      }),
+
+    // Send message
+    send: protectedProcedure
+      .input(
+        z.object({
+          conversationId: z.number().optional(),
           message: z.string().min(1),
-          conversationHistory: z.array(
-            z.object({
-              role: z.enum(["user", "assistant"]),
-              content: z.string(),
-            })
-          ).optional(),
+          images: z.array(z.object({ url: z.string(), alt: z.string().optional() })).optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -523,6 +588,14 @@ export const appRouter = router({
         const systemPrompt = `You are a thoughtful content design partner with years of experience. You've read extensively about UX writing, microcopy, content strategy, and interface copy. When someone asks for help, you think through the problem with them—not at them.
 
 You don't just generate copy. You think out loud. You weigh trade-offs. You ask clarifying questions when something's unclear. You explain your reasoning in a natural, conversational way.
+
+## When Analyzing Images/Screenshots
+
+When someone shares a screenshot or image:
+- **Actually look at what they're showing you.** Describe what you see specifically.
+- **Be contextual.** If it's a UI screenshot, analyze the actual interface elements, copy, layout, hierarchy.
+- **Don't give generic advice.** Base your feedback on what's actually in the image.
+- **Ask specific questions** about what you see if you need clarification.
 
 ## How You Communicate
 
@@ -548,15 +621,73 @@ You don't just generate copy. You think out loud. You weigh trade-offs. You ask 
 
 Generate content that demonstrates wisdom and contextual judgment, not mechanical rule-following.`;
 
-        // Build conversation messages
+        const conversationDb = await import("./conversationDb");
+        
+        // Create conversation if needed
+        let conversationId = input.conversationId;
+        if (!conversationId) {
+          conversationId = await conversationDb.createConversation({
+            userId: ctx.user.id,
+            title: input.message.substring(0, 50), // Use first 50 chars as title
+          });
+        }
+        
+        // Load conversation history
+        const conversation = await conversationDb.getConversationWithMessages(conversationId);
+        if (!conversation || conversation.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        
+        // Build conversation messages from history
         const messages: Message[] = [
           { role: 'system', content: systemPrompt },
-          ...(input.conversationHistory || []).map(msg => ({
-            role: msg.role as Role,
-            content: msg.content
-          })),
-          { role: 'user', content: input.message }
+          ...conversation.messages.map(msg => {
+            // Reconstruct message with images if present
+            if (msg.images && Array.isArray(msg.images) && msg.images.length > 0) {
+              const content: Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> = [
+                { type: 'text', text: msg.content }
+              ];
+              msg.images.forEach((img: any) => {
+                content.push({
+                  type: 'image_url',
+                  image_url: { url: img.url }
+                });
+              });
+              return {
+                role: msg.role as Role,
+                content
+              };
+            }
+            return {
+              role: msg.role as Role,
+              content: msg.content
+            };
+          }),
         ];
+        
+        // Add current user message with images if present
+        if (input.images && input.images.length > 0) {
+          const userContent: Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> = [
+            { type: 'text', text: input.message }
+          ];
+          input.images.forEach(img => {
+            userContent.push({
+              type: 'image_url',
+              image_url: { url: img.url }
+            });
+          });
+          messages.push({ role: 'user', content: userContent });
+        } else {
+          messages.push({ role: 'user', content: input.message });
+        }
+        
+        // Save user message
+        await conversationDb.createMessage({
+          conversationId,
+          role: 'user',
+          content: input.message,
+          images: input.images,
+        });
 
         // Call LLM
         const llmResponse = await invokeLLM({ messages });
@@ -579,11 +710,21 @@ Generate content that demonstrates wisdom and contextual judgment, not mechanica
         if (!response) {
           response = "I'm having trouble responding right now. Could you try rephrasing that?";
         }
+        
+        // Save assistant message
+        await conversationDb.createMessage({
+          conversationId,
+          role: 'assistant',
+          content: response,
+          model: 'claude-sonnet-4.5',
+          tokensUsed: llmResponse.usage?.total_tokens,
+        });
 
         // Increment usage counter
         await db.incrementUserGenerations(ctx.user.id);
 
         return {
+          conversationId,
           response,
           remaining: usageCheck.remaining - 1,
         };
