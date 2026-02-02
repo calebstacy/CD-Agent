@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { trpc } from '@/lib/trpc';
 import { Streamdown } from 'streamdown';
+import { parseArtifacts } from '@/lib/parseArtifacts';
+import { ArtifactRenderer } from '@/components/ArtifactRenderer';
 import { toast } from 'sonner';
 
 interface ChatMessage {
@@ -275,7 +277,18 @@ export default function Chat() {
                     
                     {message.role === 'assistant' ? (
                       <div className="prose prose-neutral prose-base max-w-none leading-relaxed">
-                        <Streamdown>{message.content}</Streamdown>
+                        {parseArtifacts(message.content).map((block, idx) => (
+                          block.type === 'artifact' && block.artifact ? (
+                            <ArtifactRenderer
+                              key={idx}
+                              type={block.artifact.type}
+                              content={block.artifact.content}
+                              title={block.artifact.title}
+                            />
+                          ) : (
+                            <Streamdown key={idx}>{block.content}</Streamdown>
+                          )
+                        ))}
                       </div>
                     ) : (
                       <p className="text-[15.5px] leading-relaxed">{message.content}</p>

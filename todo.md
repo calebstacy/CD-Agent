@@ -215,3 +215,14 @@
 - [x] Fix verbosity - responses are too long and over-explained
 - [x] Rewrite system prompt to be more concise and direct
 - [ ] Test with same screenshot to verify improvement
+
+
+## Artifact System (NEW)
+- [x] Design artifact types (copy-options, ui-preview, before-after, empty-state)
+- [x] Build artifact renderer component
+- [x] Create markdown parser for artifact syntax
+- [x] Integrate artifact rendering into Chat.tsx
+- [x] Update system prompt to generate artifacts with examples
+- [ ] Add copy/iterate/apply actions to artifacts
+- [ ] Style artifacts with visual hierarchy
+- [ ] Test artifact rendering in chat
