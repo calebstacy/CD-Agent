@@ -20,8 +20,11 @@ import Chat from "./pages/Chat";
 function Router() {
   return (
     <Switch>
-      {/* Public landing page */}
-      <Route path={"/"} component={Home} />
+      {/* Main chat interface */}
+      <Route path={"/"} component={Chat} />
+      
+      {/* Landing page (for marketing) */}
+      <Route path={"/home"} component={Home} />
       
       {/* Dashboard routes - all protected */}
       <Route path={"/dashboard"}>
@@ -100,7 +103,7 @@ function Router() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="light">
+      <ThemeProvider defaultTheme="dark">
         <TooltipProvider>
           <Toaster />
           <Router />
